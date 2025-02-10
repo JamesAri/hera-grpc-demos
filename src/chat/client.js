@@ -1,6 +1,5 @@
 const readline = require('readline')
 const crypto = require('crypto')
-const grpc = require('@grpc/grpc-js')
 
 const MESSAGE_TYPES = require('./message-types')
 
@@ -23,7 +22,7 @@ module.exports = class Chat {
 	}
 
 	start() {
-		const metadata = new grpc.Metadata()
+		const metadata = new this.client.grpc.Metadata()
 		metadata.add('x-client-id', this.username)
 		this.stream = this.service.connectChat(metadata)
 		this._authenticate()

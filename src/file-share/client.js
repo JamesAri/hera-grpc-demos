@@ -1,6 +1,5 @@
 const fs = require('fs')
 const path = require('path')
-const grpc = require('@grpc/grpc-js')
 const { Transform } = require('node:stream')
 
 const transformToGrpcMessage = new Transform({
@@ -17,7 +16,7 @@ module.exports = class ShareFileService {
 	}
 
 	sendFile(fileName) {
-		const metadata = new grpc.Metadata()
+		const metadata = new this.client.grpc.Metadata()
 		metadata.add('x-file-name', path.basename(fileName))
 		const call = this.service.downloadFile(metadata, (error, res) => {
 			if (error) {

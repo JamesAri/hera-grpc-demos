@@ -73,7 +73,7 @@ class ChatService {
 		const headers = stream.metadata.getMap()
 
 		if (!headers['x-client-id']) {
-			this._endConnection(stream, '[-] Client id not provided, disconnecting')
+			this._endConnection(stream, `[-] Client id not provided, disconnecting: ${JSON.stringify(headers)}`)
 			return
 		}
 

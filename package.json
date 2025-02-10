@@ -23,6 +23,7 @@
     "prettier": "^3.3.2"
   },
   "dependencies": {
+    "@grpc/grpc-js": "^1.12.6",
     "@slechtaj/service-client": "file:/Users/jakubslechta/ghq/github.com/JamesAri/hera-grpc",
     "async": "^3.2.6",
     "debug": "^4.4.0",

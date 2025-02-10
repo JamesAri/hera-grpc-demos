@@ -2,7 +2,6 @@ const debug = require('debug')('callee')
 
 const ServiceClient = require('@slechtaj/service-client')
 const config = require('./config')
-const zookeeper = require('./di').zookeeper
 
 // Mock some services that we want to register
 const chatLoadConfig = require('../proto/chat/config')
@@ -49,7 +48,7 @@ const registerServices = (services, sc) => {
 }
 
 function callee() {
-	const sc = new ServiceClient({ config, zookeeper })
+	const sc = new ServiceClient({ config })
 
 	try {
 		sc.once('zkReady', () => {

@@ -1,6 +1,5 @@
 const ServiceClient = require('@slechtaj/service-client')
 const config = require('./config')
-const zookeeper = require('./di').zookeeper
 const debug = require('debug')('caller')
 
 const path = require('path')
@@ -11,7 +10,7 @@ const poiClient = require('./poi/client')
 const FileShareClient = require('./file-share/client')
 
 function caller() {
-	const sc = new ServiceClient({config, zookeeper})
+	const sc = new ServiceClient({config})
 
 	try {
 		sc.once('zkReady', () => {

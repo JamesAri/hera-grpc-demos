@@ -145,6 +145,10 @@ function recordRoute(call, callback) {
 			elapsed_time: process.hrtime(startTime)[0],
 		})
 	})
+	call.on('error', function (error) {
+		console.log('Error recording route:', error)
+		callback(error)
+	})
 }
 
 const routeNotes = {}

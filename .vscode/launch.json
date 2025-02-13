@@ -11,7 +11,11 @@
 			"skipFiles": [
 				"<node_internals>/**"
 			],
-			"program": "${workspaceFolder}/src/callee.js"
+			"program": "${workspaceFolder}/src/callee.js",
+			"env": {
+				"DEBUG": "*",
+			},
+			"console": "integratedTerminal"
 		},
 		{
 			"type": "node",
@@ -20,7 +24,11 @@
 			"skipFiles": [
 				"<node_internals>/**"
 			],
-			"program": "${workspaceFolder}/src/caller.js"
+			"program": "${workspaceFolder}/src/caller.js",
+			"env": {
+				"DEBUG": "*"
+			},
+			"console": "integratedTerminal"
 		}
 	]
 }

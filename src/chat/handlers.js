@@ -21,7 +21,9 @@ class ChatService {
 				if (conn.stream === stream) {
 					this.activeConnections.delete(clientId2)
 					if (clientId) {
-						console.error(`[!] Removed connection with client ID ${clientId2} that shared stream with client ID ${clientId}`)
+						console.error(
+							`[!] Removed connection with client ID ${clientId2} that shared stream with client ID ${clientId}`,
+						)
 					}
 					continue
 				}
@@ -94,7 +96,7 @@ class ChatService {
 					return
 				}
 
-				if (this.activeConnections.values().some(({username}) => username === message.userName)) {
+				if (this.activeConnections.values().some(({ username }) => username === message.userName)) {
 					this._endConnection(stream, `[-] Username "${message.userName}" already taken, disconnecting`)
 					return
 				}
@@ -111,7 +113,6 @@ class ChatService {
 				break
 			default:
 				this._endConnection(stream, `[!] Unknown message type: ${message.type}`)
-
 			}
 		})
 
@@ -123,7 +124,7 @@ class ChatService {
 		})
 
 		stream.on('cancelled', () => {
-			// handle differently than end?
+			console.log('[!] chat server received cancelled event - stopping heavy tasks...')
 		})
 
 		stream.on('error', (error) => {

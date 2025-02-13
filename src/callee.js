@@ -51,23 +51,13 @@ function callee() {
 	const sc = new ServiceClient({ config })
 
 	try {
-		sc.once('zkReady', () => {
-			// zk ready => register services to grpc server & zk => start grpc server
-			debug('Zookeeper ready')
-			registerServices([chatService, poiService, fileShareService], sc)
-			sc.listen()
-		})
-
-		sc.once('registered', () => {
-			// our services registered (in zk and grpc server) and grpc
-			// server is listening => we are ready to handle requests
-			debug('Services registered to zookeeper')
+		sc.once('registered', (host, port) => {
+			debug(`Services registered to zookeeper, gRPC server listening on ${host}:${port}`)
 			sc.connect()
 		})
 
 		sc.once('connected', () => {
-			// we are connected to the service network and ready to handle/send requests
-			debug('Connected to the service network')
+			debug('Connected to the service network and ready to handle/send requests')
 		})
 
 		sc.once('error', (error) => {
@@ -79,7 +69,8 @@ function callee() {
 			process.exit()
 		})
 
-		sc.connectToZookeeper()
+		registerServices([chatService, poiService, fileShareService], sc)
+		sc.listen()
 	} catch (error) {
 		console.error('Unexpected error:')
 		console.error(error)

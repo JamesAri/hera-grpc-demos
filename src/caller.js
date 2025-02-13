@@ -13,12 +13,6 @@ function caller() {
 	const sc = new ServiceClient({config})
 
 	try {
-		sc.once('zkReady', () => {
-			debug('Zookeeper ready')
-
-			sc.connect()
-		})
-
 		sc.once('connected', async () => {
 			debug('Connected to the service network')
 
@@ -31,7 +25,7 @@ function caller() {
 				await poiClient(client) // run all types of rpcs
 			})
 
-			false && await sc.callService('/slechtaj-1.0.0/dev~service_route/chat', (client) => {
+			await sc.callService('/slechtaj-1.0.0/dev~service_route/chat', (client) => {
 				const chat = new ChatClient(client) // run long-lived bidi-stream rpc
 				chat.start()
 			})
@@ -48,7 +42,7 @@ function caller() {
 			process.exit()
 		})
 
-		sc.connectToZookeeper()
+		sc.connect()
 	} catch (error) {
 		console.error(`Unexpected error: ${error.message}`)
 	}

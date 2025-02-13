@@ -16,7 +16,7 @@ module.exports = class ShareFileService {
 	}
 
 	sendFile(fileName) {
-		const metadata = new this.client.grpc.Metadata()
+		const metadata = new this.client.Metadata()
 		metadata.add('x-file-name', path.basename(fileName))
 		const call = this.service.downloadFile(metadata, (error, res) => {
 			if (error) {

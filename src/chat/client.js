@@ -17,14 +17,13 @@ module.exports = class Chat {
 			output: process.stdout,
 		})
 		this.client = client
-		this.service = client.service
 		this.stream = null
 	}
 
 	start() {
-		const metadata = new this.client.grpc.Metadata()
+		const metadata = new this.client.Metadata()
 		metadata.add('x-client-id', this.username)
-		this.stream = this.service.connectChat(metadata)
+		this.stream = this.client.service.connectChat(metadata)
 		this._authenticate()
 		this._prepareChatCli()
 		this._runChatRoom()
@@ -91,7 +90,6 @@ module.exports = class Chat {
 
 		this.stream.on('error', (err /** ServiceError */) => {
 			console.error('Lost connection to server:', err.message)
-			process.exit(1)
 		})
 	}
 }

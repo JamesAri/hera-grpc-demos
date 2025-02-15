@@ -188,6 +188,9 @@ function routeChat(_sc, call) {
 		console.log('Chat routing complete')
 		call.end()
 	})
+	call.on('cancelled', function () {
+		console.log('Chat routing cancelled')
+	})
 }
 
 module.exports = {

@@ -48,7 +48,15 @@ module.exports = class Chat {
 		this.rl.once('close', () => {
 			this.rl.setPrompt('')
 			this.stream.end()
-			process.exit(0)
+		})
+
+		this.rl.on('SIGINT', () => {
+			this.rl.close()
+			if (this.stream) {
+				this.stream.end()
+			}
+			this.client.close()
+			process.exit(1)
 		})
 
 		const originalConsoleLog = console.log

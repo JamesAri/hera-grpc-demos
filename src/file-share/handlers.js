@@ -38,6 +38,13 @@ function downloadFile(_sc, call, callback) {
 				message: 'File successfully downloaded'
 			})
 		})
+
+		call.on('error', function(err) {
+			callback(null, {
+				success: false,
+				message: 'Error downloading file:' + err
+			})
+		})
 	})
 }
 

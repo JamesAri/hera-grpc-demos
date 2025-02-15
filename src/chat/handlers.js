@@ -1,5 +1,7 @@
 const MESSAGE_TYPES = require('./message-types')
 
+const FileShareClient = require('../file-share/client')
+
 class ChatService {
 	constructor() {
 		this._removeConnection = this._removeConnection.bind(this)
@@ -71,7 +73,15 @@ class ChatService {
 		return this._getConnection(clientId, stream).username
 	}
 
-	connectChat(stream) {
+	connectChat(sc, stream) {
+		// test nested call
+		sc.callService('/slechtaj-1.0.0/dev~service_route/file_share', async (client) => {
+			const fsc = new FileShareClient(client)
+			// test that setting deadline here won't affect it since it is
+			// nested call which should honor the parent's deadline
+			fsc.sendFile('/Users/jakubslechta/Desktop/test.txt', {deadline: 0})
+		})
+
 		const headers = stream.metadata.getMap()
 
 		if (!headers['x-client-id']) {
@@ -107,6 +117,7 @@ class ChatService {
 				console.log(`[+] User "${message.userName}" authenticated`)
 				break
 			case MESSAGE_TYPES.CHAT:
+				// eslint-disable-next-line no-case-declarations
 				const username = this._getUsername(clientId, stream)
 				this._multicast({ type: MESSAGE_TYPES.CHAT, content: message.content, userName: username }, clientId)
 				console.log(`[>] ${username}: ${message.content}`)
@@ -136,9 +147,9 @@ class ChatService {
 // hack
 const chatService = new ChatService()
 
-function connectChat(stream) {
+function connectChat(sc, stream) {
 	try {
-		chatService.connectChat(stream)
+		chatService.connectChat(sc, stream)
 	} catch (e) {
 		console.error('[-] Error:', e.message)
 	}

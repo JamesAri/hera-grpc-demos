@@ -2,6 +2,8 @@ const fs = require('fs')
 const path = require('path')
 const { Transform } = require('node:stream')
 
+const {grpc} = require('@slechtaj/service-client')
+
 const transformToGrpcMessage = new Transform({
 	objectMode: true,
 	transform(chunk, _encoding, callback) {
@@ -12,24 +14,27 @@ const transformToGrpcMessage = new Transform({
 module.exports = class ShareFileService {
 	constructor(client) {
 		this.client = client
-		this.service = client.service
 	}
 
-	sendFile(fileName) {
-		const metadata = new this.client.Metadata()
+	sendFile(fileName, options = {}) {
+		const metadata = new grpc.Metadata()
 		metadata.add('x-file-name', path.basename(fileName))
-		const call = this.service.downloadFile(metadata, (error, res) => {
+		const call = this.client.downloadFile(metadata, options, (error, res) => {
+			this.client.close()
 			if (error) {
 				console.log('Received server error: ', error)
 				return
 			}
 			console.log({res})
-			this.service.close()
 		})
 		const stream = fs.createReadStream(fileName)
 		stream.on('end', () => {
+			this.client.close() // pipe will also send close - testing it
 			console.log('createReadStream - END event')
+		})
+		stream.on('error', (error) => {
 			this.client.close()
+			console.log('createReadStream - ERROR event: ', error)
 		})
 		stream.pipe(transformToGrpcMessage).pipe(call)
 	}

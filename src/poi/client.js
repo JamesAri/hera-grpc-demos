@@ -5,7 +5,7 @@ const _ = require('lodash')
 
 const COORD_FACTOR = 1e7
 
-let service = null
+let client = null
 
 /**
  * List of feature objects at points that have been requested so far.
@@ -56,8 +56,8 @@ function runGetFeature(callback) {
 		latitude: 0,
 		longitude: 0,
 	}
-	service.getFeature(point1, featureCallback)
-	service.getFeature(point2, featureCallback)
+	client.getFeature(point1, featureCallback)
+	client.getFeature(point2, featureCallback)
 }
 
 /**
@@ -78,7 +78,7 @@ function runListFeatures(callback) {
 		},
 	}
 	console.log('Looking for features between 40, -75 and 42, -73')
-	const call = service.listFeatures(rectangle)
+	const call = client.listFeatures(rectangle)
 	call.on('data', function (feature) {
 		console.log(
 			'Found feature called "' +
@@ -100,7 +100,7 @@ function runListFeatures(callback) {
  */
 function runRecordRoute(callback) {
 	const numPoints = 10
-	const call = service.recordRoute(function (error, stats) {
+	const call = client.recordRoute(function (error, stats) {
 		if (error) {
 			callback(error)
 			return
@@ -148,7 +148,7 @@ function runRecordRoute(callback) {
  * @param {function} callback Called when the demo is complete
  */
 function runRouteChat(callback) {
-	const call = service.routeChat()
+	const call = client.routeChat()
 	call.on('data', function (note) {
 		console.log('Got message "' + note.message + '" at ' + note.location.latitude + ', ' + note.location.longitude)
 	})
@@ -196,8 +196,8 @@ function runRouteChat(callback) {
 /**
  * Run all of the demos in order
  */
-async function run(client) {
-	service = client.service // hack
+async function run(_client) {
+	client = _client // hack
 	await async.series([runGetFeature, runListFeatures, runRecordRoute, runRouteChat])
 }
 

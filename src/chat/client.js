@@ -3,6 +3,8 @@ const crypto = require('crypto')
 
 const MESSAGE_TYPES = require('./message-types')
 
+const {grpc} = require('@slechtaj/service-client')
+
 module.exports = class Chat {
 	constructor(client) {
 		this.start = this.start.bind(this)
@@ -21,11 +23,11 @@ module.exports = class Chat {
 	}
 
 	start() {
-		const metadata = new this.client.Metadata()
+		const metadata = new grpc.Metadata()
 		metadata.add('x-client-id', this.username)
-		this.stream = this.client.service.connectChat(metadata)
-		this._authenticate()
+		this.stream = this.client.connectChat(metadata, {deadline: null})
 		this._prepareChatCli()
+		this._authenticate()
 		this._runChatRoom()
 	}
 
@@ -82,6 +84,7 @@ module.exports = class Chat {
 		this.stream.on('end', () => {
 			console.log('Server terminated connection')
 			this.rl.close()
+			this.client.close()
 		})
 
 		this.stream.on('status', (status) => {
@@ -90,6 +93,7 @@ module.exports = class Chat {
 
 		this.stream.on('error', (err /** ServiceError */) => {
 			console.error('Lost connection to server:', err.message)
+			this.client.close()
 		})
 	}
 }

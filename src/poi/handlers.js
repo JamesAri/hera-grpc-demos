@@ -45,7 +45,7 @@ function checkFeature(point) {
  * @param {EventEmitter} call Call object for the handler to process
  * @param {function(Error, feature)} callback Response callback
  */
-function getFeature(call, callback) {
+function getFeature(_sc, call, callback) {
 	callback(null, checkFeature(call.request))
 }
 
@@ -55,7 +55,7 @@ function getFeature(call, callback) {
  * @param {Writable} call Writable stream for responses with an additional
  *     request property for the request value.
  */
-function listFeatures(call) {
+function listFeatures(_sc, call) {
 	console.log('Listing features')
 	const lo = call.request.lo
 	const hi = call.request.hi
@@ -115,7 +115,7 @@ function getDistance(start, end) {
  * @param {function(Error, routeSummary)} callback The callback to pass the
  *     response to
  */
-function recordRoute(call, callback) {
+function recordRoute(_sc, call, callback) {
 	let pointCount = 0
 	let featureCount = 0
 	let distance = 0
@@ -167,7 +167,7 @@ function pointKey(point) {
  * with a stream of all previous messages at each of those locations.
  * @param {Duplex} call The stream for incoming and outgoing messages
  */
-function routeChat(call) {
+function routeChat(_sc, call) {
 	console.log('Routing chat')
 	call.on('data', function (note) {
 		const key = pointKey(note.location)

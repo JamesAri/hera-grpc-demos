@@ -1,7 +1,7 @@
 module.exports = {
 	connection: {
-		host: 'localhost',
-		port: 50054,
+		host: '127.0.0.1',
+		port: 0, // 0 means random port
 	},
 	zookeeper: 'zk://localhost:2181/hera-test',
 }

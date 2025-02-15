@@ -1,7 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 
-function downloadFile(call, callback) {
+function downloadFile(_sc, call, callback) {
 	let fileName = call.metadata.get('x-file-name')
 	if (!fileName.length) {
 		callback(null, {
@@ -10,7 +10,7 @@ function downloadFile(call, callback) {
 		})
 		return
 	}
-	fileName = path.join('downloads/',fileName[0])
+	fileName = path.join('downloads/', path.basename(fileName[0]))
 
 	fs.mkdirSync(path.dirname(fileName), { recursive: true })
 	const file = fs.createWriteStream(fileName)

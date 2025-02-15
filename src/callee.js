@@ -2,6 +2,7 @@ const debug = require('debug')('callee')
 
 const ServiceClient = require('@slechtaj/service-client')
 const config = require('./config')
+const { teardown } = require('./utils')
 
 // Mock some services that we want to register
 const chatLoadConfig = require('../proto/chat/config')
@@ -37,32 +38,36 @@ const fileShareService = {
 
 const registerServices = (services, sc) => {
 	for (const service of services) {
-		sc.registerService(
-			service.route,
-			service.filename,
-			service.serviceName,
-			service.handlers,
-			service.loadOptions,
-		)
+		sc.registerService(service.route, service.filename, service.serviceName, service.handlers, service.loadOptions)
 	}
 }
 
 function callee() {
 	const sc = new ServiceClient({ config })
 
+	teardown((err, signal) => {
+		if (err) {
+			console.error(err)
+		}
+		debug(`Received ${signal}, closing connections and shutting down`)
+		sc.close()
+		process.exit()
+	})
+
 	try {
-		sc.once('registered', (host, port) => {
-			debug(`Services registered to zookeeper, gRPC server listening on ${host}:${port}`)
-			sc.connect()
+		sc.once('connected', () => {
+			debug('Connected to the service network and ready to send requests')
 		})
 
-		sc.once('connected', () => {
-			debug('Connected to the service network and ready to handle/send requests')
+		sc.once('registered', (port) => {
+			debug(`gRPC server listening on http://${config.connection.host}:${port}`)
+			debug('Services registered to zookeeper and ready to handle requests')
 		})
 
 		sc.once('error', (error) => {
 			process.exitCode = 1
 			console.error(error)
+			// sc.close()
 		})
 
 		sc.once('close', () => {
@@ -70,7 +75,7 @@ function callee() {
 		})
 
 		registerServices([chatService, poiService, fileShareService], sc)
-		sc.listen()
+		sc.connect()
 	} catch (error) {
 		console.error('Unexpected error:')
 		console.error(error)

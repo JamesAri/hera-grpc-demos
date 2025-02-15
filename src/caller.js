@@ -1,8 +1,9 @@
-const ServiceClient = require('@slechtaj/service-client')
-const config = require('./config')
+const path = require('path')
 const debug = require('debug')('caller')
 
-const path = require('path')
+const ServiceClient = require('@slechtaj/service-client')
+const config = require('./config')
+const { teardown } = require('./utils')
 
 // Implementation of the rpc for the service we want to call
 const ChatClient = require('./chat/client')
@@ -12,11 +13,20 @@ const FileShareClient = require('./file-share/client')
 function caller() {
 	const sc = new ServiceClient({config})
 
+	teardown((err, signal) => {
+		if (err) {
+			console.error(err)
+		}
+		debug(`Received ${signal}, closing connections and shutting down`)
+		sc.close()
+		process.exit()
+	})
+
 	try {
 		sc.once('connected', async () => {
 			debug('Connected to the service network')
 
-			false && await sc.callService('/slechtaj-1.0.0/dev~service_route/file_share', (client) => {
+			false && await sc.callService('/slechtaj-1.0.0/dev~service_route/file_share', async (client) => {
 				const fsc = new FileShareClient(client)
 				fsc.sendFile(path.join(__dirname, 'caller.js')) // share come rnd file
 			})
@@ -30,12 +40,15 @@ function caller() {
 				chat.start()
 			})
 
-			// sc.close()
+			false && await sc.callService('/slechtaj-1.0.0/dev~deadline/propagation', (client) => {
+				// TODO
+			})
 		})
 
 		sc.once('error', (error) => {
 			process.exitCode = 1
 			console.error(error)
+			sc.close()
 		})
 
 		sc.once('close', () => {
@@ -44,7 +57,8 @@ function caller() {
 
 		sc.connect()
 	} catch (error) {
-		console.error(`Unexpected error: ${error.message}`)
+		console.error('Unexpected error:')
+		console.error(error)
 	}
 }
 

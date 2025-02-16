@@ -29,15 +29,28 @@ function caller() {
 			false && await sc.callService('/slechtaj-1.0.0/dev~service_route/file_share', async (client) => {
 				const fsc = new FileShareClient(client)
 				fsc.sendFile(path.join(__dirname, 'caller.js')) // share come rnd file
+				client.close()
 			})
 
 			false && await sc.callService('/slechtaj-1.0.0/dev~service_route/poi', async (client) => {
 				await poiClient(client) // run all types of rpcs
 			})
 
-			await sc.callService('/slechtaj-1.0.0/dev~service_route/chat', (client) => {
+			false && await sc.callService('/slechtaj-1.0.0/dev~service_route/chat', (client) => {
 				const chat = new ChatClient(client) // run long-lived bidi-stream rpc
 				chat.start()
+			})
+
+			await sc.callService('/slechtaj-1.0.0/dev~service_route/file_share', async (client) => {
+				const fsc = new FileShareClient(client)
+				const options = {
+					'grpc.service_config': JSON.stringify({ loadBalancingConfig: [{ round_robin: {} }]}),  // <--- but this still works
+				}
+				for (let i = 0; i < 50; i++) {
+					await fsc.sendFileWithoutClose(path.join(__dirname, 'caller.js'), options)
+					await new Promise((resolve) => setTimeout(resolve, 500))
+				}
+				client.close()
 			})
 
 			false && await sc.callService('/slechtaj-1.0.0/dev~deadline/propagation', (client) => {

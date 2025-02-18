@@ -6,7 +6,7 @@ function downloadFile(_sc, call, callback) {
 	if (!fileName.length) {
 		callback(null, {
 			success: false,
-			message: 'File name not provided'
+			message: 'File name not provided',
 		})
 		return
 	}
@@ -15,39 +15,39 @@ function downloadFile(_sc, call, callback) {
 	fs.mkdirSync(path.dirname(fileName), { recursive: true })
 	const file = fs.createWriteStream(fileName)
 
-	file.on('finish', function() {
+	file.on('finish', function () {
 		console.log('File downloaded')
 	})
 
-	file.on('error', function(err) {
+	file.on('error', function (err) {
 		callback(null, {
 			success: false,
-			message: 'Error downloading file:' + err
+			message: 'Error downloading file:' + err,
 		})
 	})
 
-	file.on('open', function() {
-		call.on('data', function(data) {
+	file.on('open', function () {
+		call.on('data', function (data) {
 			file.write(data.chunk)
 		})
 
-		call.on('end', function() {
+		call.on('end', function () {
 			file.end()
 			callback(null, {
 				success: true,
-				message: 'File successfully downloaded'
+				message: 'File successfully downloaded',
 			})
 		})
 
-		call.on('error', function(err) {
+		call.on('error', function (err) {
 			callback(null, {
 				success: false,
-				message: 'Error downloading file:' + err
+				message: 'Error downloading file:' + err,
 			})
 		})
 	})
 }
 
 module.exports = {
-	downloadFile
+	downloadFile,
 }

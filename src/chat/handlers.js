@@ -1,7 +1,5 @@
 const MESSAGE_TYPES = require('./message-types')
 
-const FileShareClient = require('../file-share/client')
-
 class ChatService {
 	constructor() {
 		this._removeConnection = this._removeConnection.bind(this)
@@ -19,6 +17,7 @@ class ChatService {
 			this.activeConnections.delete(clientId)
 		}
 		if (stream) {
+			stream.end()
 			for (const [clientId2, conn] of this.activeConnections) {
 				if (conn.stream === stream) {
 					this.activeConnections.delete(clientId2)
@@ -73,15 +72,7 @@ class ChatService {
 		return this._getConnection(clientId, stream).username
 	}
 
-	connectChat(sc, stream) {
-		// test nested call
-		sc.callService('/slechtaj-1.0.0/dev~service_route/file_share', async (client) => {
-			const fsc = new FileShareClient(client)
-			// test that setting deadline here won't affect it since it is
-			// nested call which should honor the parent's deadline
-			fsc.sendFile('/Users/jakubslechta/Desktop/test.txt', {deadline: 0})
-		})
-
+	connectChat(_sc, stream) {
 		const headers = stream.metadata.getMap()
 
 		if (!headers['x-client-id']) {
@@ -95,35 +86,35 @@ class ChatService {
 
 		stream.on('data', (message) => {
 			switch (message.type) {
-			case MESSAGE_TYPES.AUTH:
-				if (this.activeConnections.has(clientId)) {
-					this._endConnection(stream, '[-] Client with the same id already authenticated, disconnecting')
-					return
-				}
+				case MESSAGE_TYPES.AUTH:
+					if (this.activeConnections.has(clientId)) {
+						this._endConnection(stream, '[-] Client with the same id already authenticated, disconnecting')
+						return
+					}
 
-				if (!message.userName) {
-					this._endConnection(stream, '[-] User didn\'t provide a username, disconnecting')
-					return
-				}
+					if (!message.userName) {
+						this._endConnection(stream, "[-] User didn't provide a username, disconnecting")
+						return
+					}
 
-				if (this.activeConnections.values().some(({ username }) => username === message.userName)) {
-					this._endConnection(stream, `[-] Username "${message.userName}" already taken, disconnecting`)
-					return
-				}
+					if (this.activeConnections.values().some(({ username }) => username === message.userName)) {
+						this._endConnection(stream, `[-] Username "${message.userName}" already taken, disconnecting`)
+						return
+					}
 
-				this.activeConnections.set(clientId, { username: message.userName, stream })
-				this._broadcast({ type: MESSAGE_TYPES.CHAT, content: `${message.userName} joined the chat` })
+					this.activeConnections.set(clientId, { username: message.userName, stream })
+					this._broadcast({ type: MESSAGE_TYPES.CHAT, content: `${message.userName} joined the chat` })
 
-				console.log(`[+] User "${message.userName}" authenticated`)
-				break
-			case MESSAGE_TYPES.CHAT:
-				// eslint-disable-next-line no-case-declarations
-				const username = this._getUsername(clientId, stream)
-				this._multicast({ type: MESSAGE_TYPES.CHAT, content: message.content, userName: username }, clientId)
-				console.log(`[>] ${username}: ${message.content}`)
-				break
-			default:
-				this._endConnection(stream, `[!] Unknown message type: ${message.type}`)
+					console.log(`[+] User "${message.userName}" authenticated`)
+					break
+				case MESSAGE_TYPES.CHAT:
+					// eslint-disable-next-line no-case-declarations
+					const username = this._getUsername(clientId, stream)
+					this._multicast({ type: MESSAGE_TYPES.CHAT, content: message.content, userName: username }, clientId)
+					console.log(`[>] ${username}: ${message.content}`)
+					break
+				default:
+					this._endConnection(stream, `[!] Unknown message type: ${message.type}`)
 			}
 		})
 
@@ -131,7 +122,7 @@ class ChatService {
 			const username = this._getUsername(clientId, stream)
 			this._removeConnection(clientId, stream)
 			this._broadcast({ type: MESSAGE_TYPES.CHAT, content: `${username} left the chat` })
-			console.log(`[-] User "${username}" disconnected`)
+			console.log(`[-] User "${username}" disconnected (end)`)
 		})
 
 		stream.on('cancelled', () => {

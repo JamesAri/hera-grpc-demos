@@ -1,18 +1,18 @@
-const readline = require('readline')
 const crypto = require('crypto')
+const readline = require('readline')
+
+const { grpc } = require('@slechtaj/service-client')
 
 const MESSAGE_TYPES = require('./message-types')
 
-const {grpc} = require('@slechtaj/service-client')
-
 module.exports = class Chat {
-	constructor(client) {
+	constructor(client, next) {
 		this.start = this.start.bind(this)
 		this._authenticate = this._authenticate.bind(this)
 		this._prepareChatCli = this._prepareChatCli.bind(this)
 		this._runChatRoom = this._runChatRoom.bind(this)
 
-		this.username = process.argv[2] || crypto.randomBytes(5).toString('hex')
+		this.username = process.argv[2] + crypto.randomBytes(4).toString('hex')
 
 		this.rl = readline.createInterface({
 			input: process.stdin,
@@ -20,12 +20,13 @@ module.exports = class Chat {
 		})
 		this.client = client
 		this.stream = null
+		this.next = next
 	}
 
 	start() {
 		const metadata = new grpc.Metadata()
 		metadata.add('x-client-id', this.username)
-		this.stream = this.client.connectChat(metadata, {deadline: null})
+		this.stream = this.client.connectChat(metadata, { deadline: null })
 		this._prepareChatCli()
 		this._authenticate()
 		this._runChatRoom()
@@ -47,16 +48,12 @@ module.exports = class Chat {
 
 		this.rl.once('close', () => {
 			this.rl.setPrompt('')
-			this.stream.end()
 		})
 
 		this.rl.on('SIGINT', () => {
-			this.rl.close()
 			if (this.stream) {
 				this.stream.end()
 			}
-			this.client.close()
-			process.exit(1)
 		})
 
 		const originalConsoleLog = console.log
@@ -75,7 +72,7 @@ module.exports = class Chat {
 	}
 
 	_runChatRoom() {
-		this.stream.on('data', function(message) {
+		this.stream.on('data', (message) => {
 			if (message.type === MESSAGE_TYPES.CHAT) {
 				if (!message.content) return
 
@@ -90,19 +87,27 @@ module.exports = class Chat {
 		})
 
 		this.stream.on('end', () => {
-			console.log('Server terminated connection')
-			this.rl.close()
+			console.log('Server sent end event')
+			this.stream.end()
+		})
+
+		this.stream.on('close', () => {
+			console.log('Server sent close event - closing')
 			this.client.close()
+			this.next ? this.next() : process.exit()
 		})
 
 		this.stream.on('status', (status) => {
-			console.log(status) // not for streams :) - Status of the call when it has completed.
+			// not for streams :) - Status of the call when it has completed.
+			console.log('Received status:')
+			console.log(status)
 		})
 
 		this.stream.on('error', (err /** ServiceError */) => {
-			console.error('Lost connection to server:', err.message)
-			this.client.close()
+			console.error('Error from server stream:', err.message)
+			if (this.stream) {
+				this.stream.end()
+			}
 		})
 	}
 }
-

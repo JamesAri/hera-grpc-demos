@@ -1,6 +1,7 @@
 const fs = require('fs')
-const async = require('async')
 const path = require('path')
+
+const async = require('async')
 const _ = require('lodash')
 
 const COORD_FACTOR = 1e7
@@ -12,7 +13,7 @@ let client = null
  */
 let featureList = []
 
-fs.readFile(path.join(__dirname, './poi-db-mock.json'), function(err, data) {
+fs.readFile(path.join(__dirname, './poi-db-mock.json'), function (err, data) {
 	if (err) throw err
 	featureList = JSON.parse(data)
 })
@@ -105,24 +106,24 @@ function runRecordRoute(callback) {
 			callback(error)
 			return
 		}
-		console.log('Finished trip with', stats.point_count, 'points')
-		console.log('Passed', stats.feature_count, 'features')
+		console.log('Finished trip with', stats.pointCount, 'points')
+		console.log('Passed', stats.featureCount, 'features')
 		console.log('Travelled', stats.distance, 'meters')
-		console.log('It took', stats.elapsed_time, 'seconds')
+		console.log('It took', stats.elapsedTime, 'seconds')
 		callback()
 	})
 	/**
-		 * Constructs a function that asynchronously sends the given point and then
-		 * delays sending its callback
-		 * @param {number} lat The latitude to send
-		 * @param {number} lng The longitude to send
-		 * @return {function(function)} The function that sends the point
-		 */
+	 * Constructs a function that asynchronously sends the given point and then
+	 * delays sending its callback
+	 * @param {number} lat The latitude to send
+	 * @param {number} lng The longitude to send
+	 * @return {function(function)} The function that sends the point
+	 */
 	function pointSender(lat, lng) {
 		/**
-			 * Sends the point, then calls the callback after a delay
-			 * @param {function} callback Called when complete
-			 */
+		 * Sends the point, then calls the callback after a delay
+		 * @param {function} callback Called when complete
+		 */
 		return function (callback) {
 			console.log('Visiting point ' + lat / COORD_FACTOR + ', ' + lng / COORD_FACTOR)
 			call.write({
@@ -197,9 +198,8 @@ function runRouteChat(callback) {
  * Run all of the demos in order
  */
 async function run(_client) {
-	client = _client // hack
+	client = _client
 	await async.series([runGetFeature, runListFeatures, runRecordRoute, runRouteChat])
 }
-
 
 module.exports = run

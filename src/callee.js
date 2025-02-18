@@ -1,13 +1,16 @@
-const debug = require('debug')('callee')
+require('dotenv').config()
 
 const ServiceClient = require('@slechtaj/service-client')
+const debug = require('debug')('callee')
+
+const chatLoadConfig = require('../proto/chat/config')
+const fileShareLoadConfig = require('../proto/file-share/config')
+const poiLoadConfig = require('../proto/poi/config')
+
 const config = require('./config')
 const { teardown } = require('./utils')
 
 // Mock some services that we want to register
-const chatLoadConfig = require('../proto/chat/config')
-const poiLoadConfig = require('../proto/poi/config')
-const fileShareLoadConfig = require('../proto/file-share/config')
 
 // service with long-lived bidi-stream
 const chatService = {
@@ -43,7 +46,7 @@ const registerServices = (services, sc) => {
 }
 
 function callee() {
-	const sc = new ServiceClient({ config })
+	const sc = new ServiceClient(config)
 
 	teardown((err, signal) => {
 		if (err) {
@@ -51,7 +54,6 @@ function callee() {
 		}
 		debug(`Received ${signal}, closing connections and shutting down`)
 		sc.close()
-		process.exit()
 	})
 
 	try {
@@ -65,12 +67,11 @@ function callee() {
 		})
 
 		sc.once('error', (error) => {
-			process.exitCode = 1
 			console.error(error)
-			// sc.close()
 		})
 
 		sc.once('close', () => {
+			console.log('Server closing')
 			process.exit()
 		})
 
@@ -81,6 +82,8 @@ function callee() {
 		console.error(error)
 	}
 }
+
+module.exports = callee
 
 if (require.main === module) {
 	callee()

@@ -6,6 +6,7 @@ const debug = require('debug')('callee')
 const chatLoadConfig = require('../proto/chat/config')
 const fileShareLoadConfig = require('../proto/file-share/config')
 const poiLoadConfig = require('../proto/poi/config')
+const { simpleProxyConfig, simpleServerConfig } = require('../proto/proxy/config')
 
 const config = require('./config')
 const { teardown } = require('./utils')
@@ -37,6 +38,22 @@ const fileShareService = {
 	serviceName: fileShareLoadConfig.serviceName,
 	filename: fileShareLoadConfig.filename,
 	loadOptions: fileShareLoadConfig.loadOptions,
+}
+
+const simpleProxyService = {
+	route: '/slechtaj-1.0.0/dev~service_route/simple_proxy',
+	handlers: require('./proxy').simpleProxyHandler,
+	serviceName: simpleProxyConfig.serviceName,
+	filename: simpleProxyConfig.filename,
+	loadOptions: simpleProxyConfig.loadOptions,
+}
+
+const simpleServerService = {
+	route: '/slechtaj-1.0.0/dev~service_route/simple_server',
+	handlers: require('./proxy').simpleServerHandler,
+	serviceName: simpleServerConfig.serviceName,
+	filename: simpleServerConfig.filename,
+	loadOptions: simpleServerConfig.loadOptions,
 }
 
 const registerServices = (services, sc) => {
@@ -75,7 +92,7 @@ function callee() {
 			process.exit()
 		})
 
-		registerServices([chatService, poiService, fileShareService], sc)
+		registerServices([chatService, poiService, fileShareService, simpleServerService, simpleProxyService], sc)
 		sc.connect()
 	} catch (error) {
 		console.error('Unexpected error:')

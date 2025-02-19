@@ -1,0 +1,7 @@
+syntax="proto3";
+
+import "message.proto";
+
+service SimpleServer {
+	rpc SimpleServer(stream Chunk) returns (stream Chunk) {}
+}

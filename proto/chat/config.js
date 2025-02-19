@@ -9,5 +9,5 @@ module.exports = {
 		defaults: true,
 		oneofs: true,
 	},
-	serviceName: 'ChatRoom',
+	serviceName: 'hera.chat.v1.ChatRoom',
 }

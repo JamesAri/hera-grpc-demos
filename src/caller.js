@@ -9,6 +9,7 @@ const ChatClient = require('./chat/client')
 const config = require('./config')
 const FileShareClient = require('./file-share/client')
 const poiClient = require('./poi/client')
+const { client: proxyCaller } = require('./proxy')
 const { teardown } = require('./utils')
 
 // Implementation of the rpc for the service we want to call
@@ -35,7 +36,8 @@ function caller() {
 				await sc.callService('/slechtaj-1.0.0/dev~service_route/chat', (client) => {
 					const chat = new ChatClient(client, () => {
 						sc.close()
-					}) // run long-lived bidi-stream rpc
+					})
+					// run long-lived bidi-stream rpc
 					chat.start()
 				})
 
@@ -81,6 +83,19 @@ function caller() {
 						// nested call which should honor the parent's deadline
 						fsc.sendFile('/Users/jakubslechta/Desktop/test.txt', { deadline: 0 })
 					})
+				})
+
+			if (demo === 'proxy')
+				await sc.callService('/slechtaj-1.0.0/dev~service_route/simple_proxy', async (client) => {
+					const path = '/slechtaj-1.0.0/dev~service_route/simple_server'
+
+					const request = 'AABBCCDDEEFFGGHHIIJJ'
+
+					// test that setting deadline here won't affect it since it is
+					// nested call which should honor the parent's deadline ...........
+					const response = await proxyCaller(client, path, request, {}, { deadline: 0 })
+
+					console.log(`[caller] | demo | response: ${response}`)
 				})
 		})
 

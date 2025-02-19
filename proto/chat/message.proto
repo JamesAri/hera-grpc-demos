@@ -1,0 +1,15 @@
+syntax="proto3";
+
+package hera.chat.v1;
+
+message Message {
+	MessageType type = 1;
+	optional string content = 2;
+	optional string userName = 3;
+
+
+	enum MessageType {
+		AUTH = 0;
+		CHAT = 1;
+	}
+}

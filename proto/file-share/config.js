@@ -9,5 +9,5 @@ module.exports = {
 		defaults: true,
 		oneofs: true,
 	},
-	serviceName: 'FileShare', // namespace
+	serviceName: 'hera.fileshare.v1.FileShare', // namespace
 }

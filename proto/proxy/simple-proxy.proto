@@ -1,9 +1,11 @@
 syntax="proto3";
 
+package hera.proxy.v1;
+
 import "message.proto";
 
 service SimpleProxy {
-	rpc SimpleProxy(stream Chunk) returns (stream Chunk) {}
+	rpc SimpleProxy(stream hera.common.v1.Chunk) returns (stream hera.common.v1.Chunk) {}
 }
 
 

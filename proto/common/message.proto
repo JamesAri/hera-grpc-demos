@@ -1,5 +1,7 @@
 syntax="proto3";
 
+package hera.common.v1;
+
 message Chunk {
 	string data = 1;
 }

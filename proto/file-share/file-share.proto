@@ -1,5 +1,7 @@
 syntax="proto3";
 
+package hera.fileshare.v1;
+
 service FileShare {
 	// CLIENT STREAMING
 	// stream files from client to server

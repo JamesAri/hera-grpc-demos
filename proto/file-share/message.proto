@@ -1,0 +1,13 @@
+syntax="proto3";
+
+package hera.fileshare.v1;
+
+message FileChunk {
+	bytes chunk = 1;
+}
+
+
+message Result {
+	bool success = 1;
+	optional string message = 2;
+}

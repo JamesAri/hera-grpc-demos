@@ -6,15 +6,12 @@ const { chunkStringStream } = require('./utils')
 
 // client -> simple proxy -> simple stream -> simple proxy -> client
 
-const options = {
-	// test that setting deadline here won't affect it since it is
-	// nested call which should honor the parent's deadline
-	deadline: 0,
-}
-
-const processChunk = (chunk) => {
-	// TODO: add "processing" delay
+const processChunk = async (chunk) => {
 	if (!chunk) return chunk
+	// add "processing" delay
+	console.log('processing...')
+	await new Promise((resolve) => setTimeout(resolve, 5000))
+	console.log('processing finished!')
 	const { data } = chunk
 	return { data: `pong: ${data}` }
 }
@@ -26,9 +23,11 @@ function simpleServer(_sc, stream) {
 	const xPing = stream.metadata.get('x-ping')[0]
 	const metadata = new grpc.Metadata()
 	metadata.add('x-pong', `pong: ${xPing}`)
+	let barrier = 0
 
 	console.log('[server] | x-ping:', xPing)
 
+	// Note: we could pass metadata on error or end events (they would be included as trailers)
 	stream.sendMetadata(metadata)
 
 	stream.on('cancelled', async () => {
@@ -44,13 +43,30 @@ function simpleServer(_sc, stream) {
 	})
 	stream.on('end', async () => {
 		console.log('[server] | end event -> ending stream')
-		stream.end()
+		if (barrier === 0) {
+			console.log('[server] | all work done | ending stream')
+			stream.end()
+		}
 	})
 	stream.on('data', async (chunk) => {
 		console.log('[server] | data event:', chunk)
-		const out = processChunk(chunk)
+
+		barrier += 1
+		const out = await processChunk(chunk)
+		barrier -= 1
+
+		if (stream.cancelled) {
+			console.log("[server] | stream was cancelled | won't continue processing")
+			return
+		}
+
 		console.log('[server] | sending data:', out)
 		stream.write(out)
+
+		if (barrier === 0) {
+			console.log('[server] | all work done | ending stream')
+			stream.end()
+		}
 	})
 	stream.on('close', async () => {
 		console.log('[server] | close event')
@@ -69,16 +85,16 @@ function simpleProxy(sc, proxyServerStream) {
 	})
 
 	proxyServerStream.on('cancelled', () => {
-		console.log('[proxy] | cancelled event')
 		// will automatically cancel nested stream
+		console.log('[proxy] | cancelled event')
 	})
 	proxyServerStream.on('error', (error) => {
 		console.error('[proxy] | error event from client:', error)
 		// TODO: pass to nested stream? pipe to pass which will pipe to nested stream
 	})
-	proxyServerStream.on('end', (lastChunk) => {
-		console.log('[proxy] | end event:', lastChunk)
-		pass.end(lastChunk)
+	proxyServerStream.on('end', () => {
+		console.log('[proxy] | end event')
+		pass.end()
 	})
 	proxyServerStream.on('data', (chunk) => {
 		console.log('[proxy] | data event:', chunk)
@@ -96,8 +112,9 @@ function simpleProxy(sc, proxyServerStream) {
 		metadata.add('x-ping', proxyServerStream.metadata.get('x-ping')[0])
 
 		const _metadata = new grpc.Metadata()
-
-		const proxyClientStream = client.simpleServer(metadata, options)
+		// test that setting deadline here won't affect it since it is
+		// nested call which should honor the parent's deadline.
+		const proxyClientStream = client.simpleServer(metadata, { deadline: 0 /** request Infinity */ })
 
 		proxyClientStream.on('data', (chunk) => {
 			console.log('[proxy] | nested call | data event:', chunk)
@@ -105,25 +122,20 @@ function simpleProxy(sc, proxyServerStream) {
 			proxyServerStream.write(chunk)
 		})
 
-		proxyClientStream.on('end', (lastChunk) => {
-			console.log('[proxy] | nested call | end event:', lastChunk)
-			// proxyServerStream.write(lastChunk) TODO
+		proxyClientStream.on('end', () => {
+			console.log('[proxy] | nested call | end event')
 			console.log('[proxy] | nested call | ending client stream with trailing metadata:', _metadata)
 			proxyServerStream.end(_metadata)
 		})
 
 		proxyClientStream.on('error', (error) => {
 			console.error('[proxy] | nested call | error event from server:', error)
+			// Note: we could pass custom error.metadata or use the ones in error (if present from server)
 			proxyServerStream.emit('error', error)
 		})
 
 		proxyClientStream.on('close', () => {
 			console.log('[proxy] | nested call | close event')
-			// TODO: probably not needed
-			// proxyServerStream.end({
-			// 	code: grpc.status.OK,
-			// 	message: '[!] trying if works',
-			// })
 		})
 
 		proxyClientStream.on('metadata', (metadata) => {
@@ -162,10 +174,10 @@ function simpleProxy(sc, proxyServerStream) {
 
 const clientFn = (
 	client, // grpc client
-	path, // path for proxy to know which service call
+	path, // path for proxy to know which service to call
 	request,
-	{ onData, onError, onEnd, onMetadata, onStatus, onclose: onClose },
-	options, // options for proxy call
+	{ onCall, onData, onError, onEnd, onMetadata, onStatus, onClose } = {},
+	options = {}, // options for proxy call
 ) => {
 	return new Promise((resolve, reject) => {
 		const metadata = new grpc.Metadata()
@@ -174,7 +186,9 @@ const clientFn = (
 
 		const call = client.simpleProxy(metadata, options)
 
-		let response = ''
+		onCall && onCall(call)
+
+		const response = []
 
 		call.on('status', async (status) => {
 			console.log('[client] | status event:', status)
@@ -183,7 +197,7 @@ const clientFn = (
 		call.on('metadata', async (metadata) => {
 			console.log('[client] | metadata event:', metadata)
 			const xPong = metadata.get('x-pong')[0]
-			console.log('metadata pong:', xPong)
+			console.log('[client] | metadata | pong:', xPong)
 			onMetadata && (await onMetadata(call, metadata))
 		})
 		call.on('error', async (error) => {
@@ -197,7 +211,7 @@ const clientFn = (
 		})
 		call.on('data', async (chunk) => {
 			console.log('[client] | data event:', chunk)
-			response += chunk.data
+			response.push(chunk.data)
 			onData && (await onData(call, chunk))
 		})
 		call.on('close', async () => {

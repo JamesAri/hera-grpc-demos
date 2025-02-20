@@ -1,5 +1,7 @@
 syntax="proto3";
 
+import "message.proto";
+
 package hera.fileshare.v1;
 
 service FileShare {
@@ -9,12 +11,4 @@ service FileShare {
 }
 
 
-message FileChunk {
-	bytes chunk = 1;
-}
 
-
-message Result {
-	bool success = 1;
-	optional string message = 2;
-}

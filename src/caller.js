@@ -9,7 +9,7 @@ const ChatClient = require('./chat/client')
 const config = require('./config')
 const FileShareClient = require('./file-share/client')
 const poiClient = require('./poi/client')
-const { client: proxyCaller } = require('./proxy')
+const { client: proxyClient } = require('./proxy')
 const { teardown } = require('./utils')
 
 // Implementation of the rpc for the service we want to call
@@ -64,38 +64,32 @@ function caller() {
 					client.close()
 				})
 
-			if (demo === 'deadline-propagation')
-				await sc.callService('/slechtaj-1.0.0/dev~deadline/deadline_propagation', (client) => {
-					// TODO
-				})
-
 			if (demo === 'cancel-propagation')
-				await sc.callService('/slechtaj-1.0.0/dev~deadline/cancel_propagation', (client) => {
-					// TODO
-				})
-
-			if (demo === 'parent-deadline-ignore')
-				await sc.callService('/slechtaj-1.0.0/dev~deadline/parent_deadline_ignore', (client) => {
-					// test nested call
-					sc.callService('/slechtaj-1.0.0/dev~service_route/file_share', async (client) => {
-						const fsc = new FileShareClient(client)
-						// test that setting deadline here won't affect it since it is
-						// nested call which should honor the parent's deadline
-						fsc.sendFile('/Users/jakubslechta/Desktop/test.txt', { deadline: 0 })
-					})
-				})
-
-			if (demo === 'proxy')
 				await sc.callService('/slechtaj-1.0.0/dev~service_route/simple_proxy', async (client) => {
 					const path = '/slechtaj-1.0.0/dev~service_route/simple_server'
 
 					const request = 'AABBCCDDEEFFGGHHIIJJ'
 
-					// test that setting deadline here won't affect it since it is
-					// nested call which should honor the parent's deadline ...........
-					const response = await proxyCaller(client, path, request, {}, { deadline: 0 })
-
+					const response = await proxyClient(client, path, request, {
+						onCall: (call) => {
+							setTimeout(() => {
+								console.log('[caller] | demo | cancelling call')
+								call.cancel()
+							}, 3000)
+						},
+					})
 					console.log(`[caller] | demo | response: ${response}`)
+				})
+
+			if (demo === 'proxy' || demo === 'cancel-propagation')
+				await sc.callService('/slechtaj-1.0.0/dev~service_route/simple_proxy', async (client) => {
+					const path = '/slechtaj-1.0.0/dev~service_route/simple_server'
+
+					const request = 'AABBCCDDEEFFGGHHIIJJ'
+
+					const response = await proxyClient(client, path, request)
+
+					console.log(`[caller] | demo | response: ${response.join(' ')}`)
 				})
 		})
 

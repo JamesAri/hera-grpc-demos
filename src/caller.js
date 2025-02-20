@@ -12,8 +12,6 @@ const poiClient = require('./poi/client')
 const { client: proxyClient } = require('./proxy')
 const { teardown } = require('./utils')
 
-// Implementation of the rpc for the service we want to call
-
 function caller() {
 	const sc = new ServiceClient(config)
 
@@ -35,6 +33,7 @@ function caller() {
 			if (demo === 'chat')
 				await sc.callService('/slechtaj-1.0.0/dev~service_route/chat', (client) => {
 					const chat = new ChatClient(client, () => {
+						client.close()
 						sc.close()
 					})
 					// run long-lived bidi-stream rpc
@@ -46,11 +45,37 @@ function caller() {
 					const fsc = new FileShareClient(client)
 					await fsc.sendFile(path.join(__dirname, 'caller.js')) // share come rnd file
 					client.close()
+					sc.close()
 				})
+
+			if (demo === 'file-share-non-await-spam') {
+				// eslint-disable-next-line no-constant-condition
+				if (false) {
+					// Don't do this! It will still work, but we might end up with multiple
+					// channels which will be very resource intensive.
+					for (let i = 0; i < 100; i++) {
+						sc.callService('/slechtaj-1.0.0/dev~service_route/file_share', async (client) => {
+							const fsc = new FileShareClient(client)
+							await fsc.sendFile(path.join(__dirname, 'caller.js')) // share come rnd file
+						})
+					}
+				}
+				// Instead reuse the channel like this:
+				sc.callService('/slechtaj-1.0.0/dev~service_route/file_share', async (client) => {
+					const fsc = new FileShareClient(client)
+					for (let i = 0; i < 100; i++) {
+						await fsc.sendFile(path.join(__dirname, 'caller.js')) // share come rnd file
+					}
+					client.close()
+					sc.close()
+				})
+			}
 
 			if (demo === 'poi')
 				await sc.callService('/slechtaj-1.0.0/dev~service_route/poi', async (client) => {
-					await poiClient(client) // run all types of rpcs
+					await poiClient(client) // run the popular grpc demo
+					client.close()
+					sc.close()
 				})
 
 			if (demo === 'lb-round-robin')
@@ -59,29 +84,13 @@ function caller() {
 					const fsc = new FileShareClient(client)
 					for (let i = 0; i < 50; i++) {
 						await fsc.sendFile(path.join(__dirname, 'caller.js'))
-						await new Promise((resolve) => setTimeout(resolve, 500))
+						await new Promise((resolve) => setTimeout(resolve, 500)) // so we can "see" the LB in action
 					}
 					client.close()
+					sc.close()
 				})
 
-			if (demo === 'cancel-propagation')
-				await sc.callService('/slechtaj-1.0.0/dev~service_route/simple_proxy', async (client) => {
-					const path = '/slechtaj-1.0.0/dev~service_route/simple_server'
-
-					const request = 'AABBCCDDEEFFGGHHIIJJ'
-
-					const response = await proxyClient(client, path, request, {
-						onCall: (call) => {
-							setTimeout(() => {
-								console.log('[caller] | demo | cancelling call')
-								call.cancel()
-							}, 3000)
-						},
-					})
-					console.log(`[caller] | demo | response: ${response}`)
-				})
-
-			if (demo === 'proxy' || demo === 'cancel-propagation')
+			if (demo === 'proxy')
 				await sc.callService('/slechtaj-1.0.0/dev~service_route/simple_proxy', async (client) => {
 					const path = '/slechtaj-1.0.0/dev~service_route/simple_server'
 
@@ -90,6 +99,39 @@ function caller() {
 					const response = await proxyClient(client, path, request)
 
 					console.log(`[caller] | demo | response: ${response.join(' ')}`)
+					client.close()
+					sc.close()
+				})
+
+			if (demo === 'proxy-cancel-propagation')
+				await sc.callService('/slechtaj-1.0.0/dev~service_route/simple_proxy', async (client) => {
+					const path = '/slechtaj-1.0.0/dev~service_route/simple_server'
+
+					const request = 'AABBCCDDEEFFGGHHIIJJ'
+
+					const response = await proxyClient(client, path, request, {
+						onCall: (call) => {
+							setTimeout(() => {
+								console.log('[caller] | demo | cancelling call | call.cancel() after 3s')
+								call.cancel()
+							}, 3000)
+						},
+					})
+					console.log(`[caller] | demo | response: ${response}`)
+					client.close()
+					sc.close()
+				})
+
+			if (demo === 'proxy-deadline-propagation')
+				await sc.callService('/slechtaj-1.0.0/dev~service_route/simple_proxy', async (client) => {
+					const path = '/slechtaj-1.0.0/dev~service_route/simple_server'
+
+					const request = 'AABBCCDDEEFFGGHHIIJJ'
+
+					const response = await proxyClient(client, path, request, {}, { deadline: new Date().getTime() + 5000 })
+					console.log(`[caller] | demo | response: ${response}`)
+					client.close()
+					sc.close()
 				})
 		})
 

@@ -11,8 +11,6 @@ const { simpleProxyConfig, simpleServerConfig } = require('../proto/proxy/config
 const config = require('./config')
 const { teardown } = require('./utils')
 
-// Mock some services that we want to register
-
 // service with long-lived bidi-stream
 const chatService = {
 	route: '/slechtaj-1.0.0/dev~service_route/chat',
@@ -40,6 +38,7 @@ const fileShareService = {
 	loadOptions: fileShareLoadConfig.loadOptions,
 }
 
+// service for parent demo - proxy
 const simpleProxyService = {
 	route: '/slechtaj-1.0.0/dev~service_route/simple_proxy',
 	handlers: require('./proxy').simpleProxyHandler,
@@ -48,6 +47,7 @@ const simpleProxyService = {
 	loadOptions: simpleProxyConfig.loadOptions,
 }
 
+// service for parent demo - server
 const simpleServerService = {
 	route: '/slechtaj-1.0.0/dev~service_route/simple_server',
 	handlers: require('./proxy').simpleServerHandler,
@@ -64,6 +64,8 @@ const registerServices = (services, sc) => {
 
 function callee() {
 	const sc = new ServiceClient(config)
+
+	const demo = process.argv[2]
 
 	teardown((err, signal) => {
 		if (err) {
@@ -92,7 +94,12 @@ function callee() {
 			process.exit()
 		})
 
-		registerServices([chatService, poiService, fileShareService, simpleServerService, simpleProxyService], sc)
+		const services = [chatService, poiService, fileShareService]
+
+		if (demo === 'simple-proxy') services.push(simpleProxyService)
+		if (demo === 'simple-server') services.push(simpleServerService)
+
+		registerServices(services, sc)
 		sc.connect()
 	} catch (error) {
 		console.error('Unexpected error:')

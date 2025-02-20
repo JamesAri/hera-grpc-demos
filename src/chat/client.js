@@ -93,7 +93,6 @@ module.exports = class Chat {
 
 		this.stream.on('close', () => {
 			console.log('Server sent close event - closing')
-			this.client.close()
 			this.next ? this.next() : process.exit()
 		})
 

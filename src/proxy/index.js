@@ -6,67 +6,100 @@ const { chunkStringStream } = require('./utils')
 
 // client -> simple proxy -> simple stream -> simple proxy -> client
 
-const processChunk = async (chunk) => {
-	if (!chunk) return chunk
-	// add "processing" delay
-	console.log('processing...')
-	await new Promise((resolve) => setTimeout(resolve, 5000))
-	console.log('processing finished!')
-	const { data } = chunk
-	return { data: `pong: ${data}` }
+// Class to simulate some work
+class WorkPool {
+	constructor(call) {
+		this.timeouts = []
+		this.call = call
+	}
+
+	_removeWorker(timeout) {
+		const index = this.timeouts.indexOf(timeout)
+		if (index !== -1) {
+			this.timeouts.splice(index, 1)
+		}
+	}
+
+	isDone() {
+		return this.timeouts.length === 0
+	}
+
+	processChunk(chunk) {
+		if (!chunk) return
+
+		const delay = Math.random() * 10000
+
+		console.log(`processing... worker will finish in ${delay}ms`)
+
+		const timeout = setTimeout(() => {
+			console.log('processing finished!')
+
+			this._removeWorker(timeout)
+
+			if (this.call.cancelled) return
+
+			const response = { data: `pong: ${chunk.data}` }
+
+			console.log('[server] | sending data:', response)
+
+			this.call.write(response)
+
+			if (this.isDone()) {
+				console.log('[server] | all work done | ending stream')
+				this.call.end()
+			}
+		}, delay)
+
+		this.timeouts.push(timeout)
+	}
+
+	cancel() {
+		this.timeouts.forEach((timeout) => {
+			console.log('canceling work...')
+			clearTimeout(timeout)
+		})
+		this.timeouts = []
+	}
 }
 
 /**
  * Send pong data
  */
-function simpleServer(_sc, stream) {
+function simpleServer(_remote, stream) {
+	// "processing" work pool
+	const workPool = new WorkPool(stream)
+
 	const xPing = stream.metadata.get('x-ping')[0]
 	const metadata = new grpc.Metadata()
 	metadata.add('x-pong', `pong: ${xPing}`)
-	let barrier = 0
 
 	console.log('[server] | x-ping:', xPing)
 
 	// Note: we could pass metadata on error or end events (they would be included as trailers)
 	stream.sendMetadata(metadata)
 
-	stream.on('cancelled', async () => {
+	stream.on('cancelled', () => {
 		// When an RPC is cancelled, the server should stop any ongoing
 		// computation and end its side of the stream.
-		console.log('[server] | cancelled event -> ending stream')
+		console.log('[server] | stream was cancelled | will stop all processing and end stream')
+		workPool.cancel()
 		stream.end()
 	})
-	stream.on('error', async (error) => {
-		// TODO: doesn't make sense to forward error
-		console.error('[server] | error event from proxy -> ending stream:', error)
-		stream.end(error)
+	stream.on('error', (error) => {
+		console.error('[server] | error event from proxy -> ending stream with error', error.message)
+		workPool.cancel()
+		stream.end(error) // TODO: doesn't make sense to forward error
 	})
-	stream.on('end', async () => {
-		console.log('[server] | end event -> ending stream')
-		if (barrier === 0) {
+	stream.on('end', () => {
+		console.log('[server] | end event')
+		if (workPool.isDone()) {
 			console.log('[server] | all work done | ending stream')
 			stream.end()
 		}
 	})
-	stream.on('data', async (chunk) => {
+	stream.on('data', (chunk) => {
 		console.log('[server] | data event:', chunk)
-
-		barrier += 1
-		const out = await processChunk(chunk)
-		barrier -= 1
-
-		if (stream.cancelled) {
-			console.log("[server] | stream was cancelled | won't continue processing")
-			return
-		}
-
-		console.log('[server] | sending data:', out)
-		stream.write(out)
-
-		if (barrier === 0) {
-			console.log('[server] | all work done | ending stream')
-			stream.end()
-		}
+		workPool.processChunk(chunk)
 	})
 	stream.on('close', async () => {
 		console.log('[server] | close event')
@@ -77,7 +110,11 @@ function simpleServer(_sc, stream) {
 // bidi stream
 // ↓
 
-function simpleProxy(sc, proxyServerStream) {
+function simpleProxy(remote, proxyServerStream) {
+	// proxyServerStream - bidirectional stream between client and proxy
+	// proxyClientStream - bidirectional stream between proxy and server
+	// pass - passThrough stream (buffer) to pass data between client and server
+
 	// TODO: pipe
 	const pass = new PassThrough({
 		highWaterMark: 1024 * 1024, // 1 MB
@@ -86,10 +123,10 @@ function simpleProxy(sc, proxyServerStream) {
 
 	proxyServerStream.on('cancelled', () => {
 		// will automatically cancel nested stream
-		console.log('[proxy] | cancelled event')
+		console.log('[proxy] | cancelled event -> auto cancel propagation')
 	})
 	proxyServerStream.on('error', (error) => {
-		console.error('[proxy] | error event from client:', error)
+		console.error('[proxy] | error event from client:', error.message)
 		// TODO: pass to nested stream? pipe to pass which will pipe to nested stream
 	})
 	proxyServerStream.on('end', () => {
@@ -106,61 +143,62 @@ function simpleProxy(sc, proxyServerStream) {
 
 	const path = proxyServerStream.metadata.get('x-service-path')[0]
 
-	// nested call
-	sc.callService(path, (client) => {
+	// nested server call
+	remote.callService(path, (client) => {
 		const metadata = new grpc.Metadata()
 		metadata.add('x-ping', proxyServerStream.metadata.get('x-ping')[0])
 
-		const _metadata = new grpc.Metadata()
+		const proxiedMetadata = new grpc.Metadata()
 		// test that setting deadline here won't affect it since it is
-		// nested call which should honor the parent's deadline.
+		// nested server call which should honor the parent's deadline.
 		const proxyClientStream = client.simpleServer(metadata, { deadline: 0 /** request Infinity */ })
 
 		proxyClientStream.on('data', (chunk) => {
-			console.log('[proxy] | nested call | data event:', chunk)
-			console.log('[proxy] | nested call | passing data to client')
+			console.log('[proxy] | server stream | data event -> sending to client:', chunk)
 			proxyServerStream.write(chunk)
 		})
 
 		proxyClientStream.on('end', () => {
-			console.log('[proxy] | nested call | end event')
-			console.log('[proxy] | nested call | ending client stream with trailing metadata:', _metadata)
-			proxyServerStream.end(_metadata)
+			console.log('[proxy] | server stream | end event | trailing metadata:', proxiedMetadata)
+			proxyServerStream.end(proxiedMetadata)
 		})
 
 		proxyClientStream.on('error', (error) => {
-			console.error('[proxy] | nested call | error event from server:', error)
-			// Note: we could pass custom error.metadata or use the ones in error (if present from server)
+			console.error('[proxy] | server stream | error event from server:', error.message)
+			// Note: here we could:
+			// 1) pass the proxiedMetadata with error (error.metadata = proxiedMetadata) if they reached us
+			// 2) send custom metadata (with custom error message)
+			// 3) send error as is, because server could pass metadata with error
 			proxyServerStream.emit('error', error)
 		})
 
-		proxyClientStream.on('close', () => {
-			console.log('[proxy] | nested call | close event')
-		})
-
 		proxyClientStream.on('metadata', (metadata) => {
-			console.log('[proxy] | nested call | metadata event', metadata)
-			_metadata.add('x-pong', metadata.get('x-pong')[0])
+			console.log('[proxy] | server stream | headers metadata event', metadata)
+			proxiedMetadata.add('x-pong', metadata.get('x-pong')[0])
+			// NOTE: we could send the metadata in headers, but we will send them in end
+			// just to showcase that we can send them in trailers.
 		})
 
-		// Status of the call when it has completed.
+		proxyClientStream.on('close', () => {
+			console.log('[proxy] | server stream | close event')
+		})
+
 		proxyClientStream.on('status', (status) => {
-			console.log('[proxy] | nested call | status event:', status)
-			if (status.code !== grpc.status.OK) {
-				proxyServerStream.emit('error', status)
-			}
+			// Status of the call when it has completed
+			console.log('[proxy] | server stream | status event:', status)
 		})
 
-		// pass.pipe(proxyClientStream)
+		// Pass data from client to server
 		pass.on('data', (chunk) => {
-			console.log('[proxy] | nested | pass | data event | passing chunk:', chunk)
+			console.log('[proxy] | client stream | data event | passing chunk to server:', chunk)
 			proxyClientStream.write(chunk)
 		})
 
+		// Client has finished sending data, we can signal end to the server
 		pass.on('end', (lastChunk) => {
-			console.log('[proxy] | nested | pass | end event')
+			console.log('[proxy] | client stream | end event -> sending end to server')
 			if (lastChunk) {
-				console.log('[proxy] | nested | pass | end event | passing last chunk:', lastChunk)
+				console.log('[proxy] | client stream | end event | passing last chunk to server:', lastChunk)
 				proxyClientStream.write(lastChunk)
 			}
 			proxyClientStream.end()
@@ -192,16 +230,16 @@ const clientFn = (
 
 		call.on('status', async (status) => {
 			console.log('[client] | status event:', status)
+			const xPong = status.metadata?.get('x-pong')[0]
+			console.log('[client] | trailers metadata:', xPong)
 			onStatus && (await onStatus(call, status))
 		})
 		call.on('metadata', async (metadata) => {
-			console.log('[client] | metadata event:', metadata)
-			const xPong = metadata.get('x-pong')[0]
-			console.log('[client] | metadata | pong:', xPong)
+			console.log('[client] | headers metadata event:', metadata)
 			onMetadata && (await onMetadata(call, metadata))
 		})
 		call.on('error', async (error) => {
-			console.error('[client] | error event from proxy:', error)
+			console.error('[client] | error event from proxy:', error.message)
 			onError && (await onError(call, error))
 			reject(error)
 		})

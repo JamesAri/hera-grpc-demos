@@ -3,7 +3,11 @@ require('dotenv').config()
 const path = require('path')
 
 const ServiceClient = require('@slechtaj/service-client')
+const { grpc } = require('@slechtaj/service-client')
 const debug = require('debug')('caller')
+const { service: healthServiceMethods } = require('grpc-health-check')
+
+const HealthService = grpc.makeGenericClientConstructor(healthServiceMethods)
 
 const ChatClient = require('./chat/client')
 const config = require('./config')
@@ -32,12 +36,23 @@ function caller() {
 
 			if (demo === 'chat')
 				await sc.callService('/slechtaj-1.0.0/dev~service_route/chat', (client) => {
-					const chat = new ChatClient(client, () => {
-						client.close()
-						sc.close()
+					const peer = client.getChannel().getTarget()
+					const healthService = new HealthService(peer, grpc.credentials.createInsecure())
+
+					healthService.check({ service: '' }, (error, response) => {
+						if (error) {
+							console.error(`[caller] | demo | health check failed: ${error.message}`)
+						} else {
+							console.log(`[caller] | demo | health check: ${response.status}`)
+
+							const chat = new ChatClient(client, () => {
+								client.close()
+								sc.close()
+							})
+							// run long-lived bidi-stream rpc
+							chat.start()
+						}
 					})
-					// run long-lived bidi-stream rpc
-					chat.start()
 				})
 
 			if (demo === 'file-share')

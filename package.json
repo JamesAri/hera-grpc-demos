@@ -27,6 +27,7 @@
     "async": "^3.2.6",
     "debug": "^4.4.0",
     "dotenv": "^16.4.7",
+    "grpc-health-check": "^2.0.2",
     "lodash": "^4.17.21"
   }
 }

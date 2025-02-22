@@ -34,120 +34,119 @@ function caller() {
 
 			const demo = process.argv[2]
 
-			if (demo === 'chat')
-				await sc.callService('/slechtaj-1.0.0/dev~service_route/chat', (client) => {
-					const peer = client.getChannel().getTarget()
-					const healthService = new HealthService(peer, grpc.credentials.createInsecure())
+			if (demo === 'chat') {
+				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/chat')
+				const peer = stub.getChannel().getTarget()
+				const healthService = new HealthService(peer, grpc.credentials.createInsecure())
 
-					healthService.check({ service: '' }, (error, response) => {
-						if (error) {
-							console.error(`[caller] | demo | health check failed: ${error.message}`)
-						} else {
-							console.log(`[caller] | demo | health check: ${response.status}`)
-
-							const chat = new ChatClient(client, () => {
-								client.close()
-								sc.close()
-							})
-							// run long-lived bidi-stream rpc
-							chat.start()
-						}
-					})
+				healthService.check({ service: '' }, (error, response) => {
+					if (error) {
+						console.error(`[caller] | demo | health check failed: ${error.message}`)
+					} else {
+						console.log(`[caller] | demo | health check: ${response.status}`)
+						const chat = new ChatClient(stub, () => {
+							stub.close()
+							sc.close()
+						})
+						// run long-lived bidi-stream rpc
+						chat.start()
+					}
 				})
+			}
 
-			if (demo === 'file-share')
-				await sc.callService('/slechtaj-1.0.0/dev~service_route/file_share', async (client) => {
-					const fsc = new FileShareClient(client)
-					await fsc.sendFile(path.join(__dirname, 'caller.js')) // share come rnd file
-					client.close()
-					sc.close()
-				})
+			if (demo === 'file-share') {
+				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/file_share')
+				const fsc = new FileShareClient(stub)
+				await fsc.sendFile(path.join(__dirname, 'caller.js')) // share come rnd file
+				stub.close()
+				sc.close()
+			}
 
 			if (demo === 'file-share-non-await-spam') {
 				// eslint-disable-next-line no-constant-condition
 				if (false) {
 					// Don't do this! It will still work, but we might end up with multiple
-					// channels which will be very resource intensive.
+					// connections which will be very resource intensive.
 					for (let i = 0; i < 100; i++) {
-						sc.callService('/slechtaj-1.0.0/dev~service_route/file_share', async (client) => {
-							const fsc = new FileShareClient(client)
-							await fsc.sendFile(path.join(__dirname, 'caller.js')) // share come rnd file
-						})
+						const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/file_share')
+						const fsc = new FileShareClient(stub)
+						await fsc.sendFile(path.join(__dirname, 'caller.js')) // share come rnd file
+						stub.close()
 					}
+					sc.close()
 				}
 				// Instead reuse the channel like this:
-				sc.callService('/slechtaj-1.0.0/dev~service_route/file_share', async (client) => {
-					const fsc = new FileShareClient(client)
-					for (let i = 0; i < 100; i++) {
-						await fsc.sendFile(path.join(__dirname, 'caller.js')) // share come rnd file
-					}
-					client.close()
-					sc.close()
-				})
+				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/file_share')
+				const fsc = new FileShareClient(stub)
+				for (let i = 0; i < 100; i++) {
+					await fsc.sendFile(path.join(__dirname, 'caller.js')) // share come rnd file
+				}
+				stub.close()
+				sc.close()
 			}
 
-			if (demo === 'poi')
-				await sc.callService('/slechtaj-1.0.0/dev~service_route/poi', async (client) => {
-					await poiClient(client) // run the popular grpc demo
-					client.close()
-					sc.close()
+			if (demo === 'poi') {
+				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/poi')
+				await poiClient(stub) // run the popular grpc demo
+				stub.close()
+				sc.close()
+			}
+
+			if (demo === 'lb-round-robin') {
+				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/file_share')
+				// run multiple callee instances and let the load balancer distribute the requests
+				const fsc = new FileShareClient(stub)
+				for (let i = 0; i < 50; i++) {
+					await fsc.sendFile(path.join(__dirname, 'caller.js'))
+					await new Promise((resolve) => setTimeout(resolve, 500)) // so we can "see" the LB in action
+				}
+				stub.close()
+				sc.close()
+			}
+
+			if (demo === 'proxy') {
+				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/simple_proxy')
+				const path = '/slechtaj-1.0.0/dev~service_route/simple_server'
+
+				const request = 'AABBCCDDEEFFGGHHIIJJ'
+
+				const response = await proxyClient(stub, path, request)
+
+				console.log(`[caller] | demo | response: ${response.join(' ')}`)
+				stub.close()
+				sc.close()
+			}
+
+			if (demo === 'proxy-cancel-propagation') {
+				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/simple_proxy')
+				const path = '/slechtaj-1.0.0/dev~service_route/simple_server'
+
+				const request = 'AABBCCDDEEFFGGHHIIJJ'
+
+				const response = await proxyClient(stub, path, request, {
+					onCall: (call) => {
+						setTimeout(() => {
+							console.log('[caller] | demo | cancelling call | call.cancel() after 3s')
+							call.cancel()
+						}, 3000)
+					},
 				})
+				console.log(`[caller] | demo | response: ${response}`)
+				stub.close()
+				sc.close()
+			}
 
-			if (demo === 'lb-round-robin')
-				await sc.callService('/slechtaj-1.0.0/dev~service_route/file_share', async (client) => {
-					// run multiple callee instances and let the load balancer distribute the requests
-					const fsc = new FileShareClient(client)
-					for (let i = 0; i < 50; i++) {
-						await fsc.sendFile(path.join(__dirname, 'caller.js'))
-						await new Promise((resolve) => setTimeout(resolve, 500)) // so we can "see" the LB in action
-					}
-					client.close()
-					sc.close()
-				})
+			if (demo === 'proxy-deadline-propagation') {
+				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/simple_proxy')
+				const path = '/slechtaj-1.0.0/dev~service_route/simple_server'
 
-			if (demo === 'proxy')
-				await sc.callService('/slechtaj-1.0.0/dev~service_route/simple_proxy', async (client) => {
-					const path = '/slechtaj-1.0.0/dev~service_route/simple_server'
+				const request = 'AABBCCDDEEFFGGHHIIJJ'
 
-					const request = 'AABBCCDDEEFFGGHHIIJJ'
-
-					const response = await proxyClient(client, path, request)
-
-					console.log(`[caller] | demo | response: ${response.join(' ')}`)
-					client.close()
-					sc.close()
-				})
-
-			if (demo === 'proxy-cancel-propagation')
-				await sc.callService('/slechtaj-1.0.0/dev~service_route/simple_proxy', async (client) => {
-					const path = '/slechtaj-1.0.0/dev~service_route/simple_server'
-
-					const request = 'AABBCCDDEEFFGGHHIIJJ'
-
-					const response = await proxyClient(client, path, request, {
-						onCall: (call) => {
-							setTimeout(() => {
-								console.log('[caller] | demo | cancelling call | call.cancel() after 3s')
-								call.cancel()
-							}, 3000)
-						},
-					})
-					console.log(`[caller] | demo | response: ${response}`)
-					client.close()
-					sc.close()
-				})
-
-			if (demo === 'proxy-deadline-propagation')
-				await sc.callService('/slechtaj-1.0.0/dev~service_route/simple_proxy', async (client) => {
-					const path = '/slechtaj-1.0.0/dev~service_route/simple_server'
-
-					const request = 'AABBCCDDEEFFGGHHIIJJ'
-
-					const response = await proxyClient(client, path, request, {}, { deadline: new Date().getTime() + 5000 })
-					console.log(`[caller] | demo | response: ${response}`)
-					client.close()
-					sc.close()
-				})
+				const response = await proxyClient(stub, path, request, {}, { deadline: new Date().getTime() + 5000 })
+				console.log(`[caller] | demo | response: ${response}`)
+				stub.close()
+				sc.close()
+			}
 		})
 
 		sc.once('error', (error) => {
@@ -162,7 +161,7 @@ function caller() {
 
 		sc.connect()
 	} catch (error) {
-		console.error('Unexpected error:')
+		console.error('Caller error:')
 		console.error(error)
 	}
 }

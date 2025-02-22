@@ -35,7 +35,6 @@ const fileShareService = {
 	handlers: require('./file-share/handlers'),
 	serviceName: fileShareLoadConfig.serviceName,
 	filename: fileShareLoadConfig.filename,
-	loadOptions: fileShareLoadConfig.loadOptions,
 }
 
 // service for parent demo - proxy
@@ -71,8 +70,8 @@ function callee() {
 		if (err) {
 			console.error(err)
 		}
-		debug(`Received ${signal}, closing connections and shutting down`)
-		sc.close()
+		// debug(`Received ${signal}, closing connections and shutting down`)
+		// sc.close()
 	})
 
 	try {
@@ -102,7 +101,7 @@ function callee() {
 		registerServices(services, sc)
 		sc.connect()
 	} catch (error) {
-		console.error('Unexpected error:')
+		console.error('Callee error:')
 		console.error(error)
 	}
 }

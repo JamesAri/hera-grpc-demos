@@ -110,99 +110,110 @@ function simpleServer(_remote, stream) {
 // bidi stream
 // ↓
 
-function simpleProxy(remote, proxyServerStream) {
-	// proxyServerStream - bidirectional stream between client and proxy
-	// proxyClientStream - bidirectional stream between proxy and server
+async function simpleProxy(remote, proxyClientStream) {
+	// proxyClientStream - bidirectional stream between client and proxy
+	// proxyServerStream - bidirectional stream between proxy and server
 	// pass - passThrough stream (buffer) to pass data between client and server
 
-	// TODO: pipe
 	const pass = new PassThrough({
 		highWaterMark: 1024 * 1024, // 1 MB
 		objectMode: true,
 	})
 
-	proxyServerStream.on('cancelled', () => {
+	// client <-> proxy
+
+	proxyClientStream.on('cancelled', () => {
 		// will automatically cancel nested stream
-		console.log('[proxy] | cancelled event -> auto cancel propagation')
+		console.log('[proxy] | cancelled event -> auto cancel propagation to nested streams')
+		pass.end()
+		proxyClientStream.end()
 	})
-	proxyServerStream.on('error', (error) => {
+	proxyClientStream.on('error', (error) => {
 		console.error('[proxy] | error event from client:', error.message)
 		// TODO: pass to nested stream? pipe to pass which will pipe to nested stream
 	})
-	proxyServerStream.on('end', () => {
+	proxyClientStream.on('end', () => {
 		console.log('[proxy] | end event')
 		pass.end()
 	})
-	proxyServerStream.on('data', (chunk) => {
+	proxyClientStream.on('data', (chunk) => {
 		console.log('[proxy] | data event:', chunk)
 		pass.write(chunk)
 	})
-	proxyServerStream.on('close', () => {
+	proxyClientStream.on('close', () => {
 		console.log('[proxy] | close event')
 	})
 
-	const path = proxyServerStream.metadata.get('x-service-path')[0]
+	const path = proxyClientStream.metadata.get('x-service-path')[0]
 
-	// nested server call
-	remote.callService(path, (client) => {
-		const metadata = new grpc.Metadata()
-		metadata.add('x-ping', proxyServerStream.metadata.get('x-ping')[0])
+	// nested server call - calling getStub from remote context;
+	// proxy <-> server
+	const stub = await remote.getStub(path)
 
-		const proxiedMetadata = new grpc.Metadata()
-		// test that setting deadline here won't affect it since it is
-		// nested server call which should honor the parent's deadline.
-		const proxyClientStream = client.simpleServer(metadata, { deadline: 0 /** request Infinity */ })
+	// getStub has retry mechanism, we could be late, so thats why we need to check if client
+	// didn't cancel the stream before we got the stub
+	if (proxyClientStream.cancelled) {
+		console.log('[proxy] | client cancelled stream before calling server')
+		return
+	}
 
-		proxyClientStream.on('data', (chunk) => {
-			console.log('[proxy] | server stream | data event -> sending to client:', chunk)
-			proxyServerStream.write(chunk)
-		})
+	const metadata = new grpc.Metadata()
+	metadata.add('x-ping', proxyClientStream.metadata.get('x-ping')[0])
 
-		proxyClientStream.on('end', () => {
-			console.log('[proxy] | server stream | end event | trailing metadata:', proxiedMetadata)
-			proxyServerStream.end(proxiedMetadata)
-		})
+	const proxiedMetadata = new grpc.Metadata()
+	// test that setting deadline here won't affect it since it is
+	// nested server call which should honor the parent's deadline.
+	const proxyServerStream = stub.simpleServer(metadata, { deadline: 0 /** request Infinity */ })
 
-		proxyClientStream.on('error', (error) => {
-			console.error('[proxy] | server stream | error event from server:', error.message)
-			// Note: here we could:
-			// 1) pass the proxiedMetadata with error (error.metadata = proxiedMetadata) if they reached us
-			// 2) send custom metadata (with custom error message)
-			// 3) send error as is, because server could pass metadata with error
-			proxyServerStream.emit('error', error)
-		})
+	proxyServerStream.on('data', (chunk) => {
+		console.log('[proxy] | server stream | data event -> sending to client:', chunk)
+		proxyClientStream.write(chunk)
+	})
 
-		proxyClientStream.on('metadata', (metadata) => {
-			console.log('[proxy] | server stream | headers metadata event', metadata)
-			proxiedMetadata.add('x-pong', metadata.get('x-pong')[0])
-			// NOTE: we could send the metadata in headers, but we will send them in end
-			// just to showcase that we can send them in trailers.
-		})
+	proxyServerStream.on('end', () => {
+		console.log('[proxy] | server stream | end event | trailing metadata:', proxiedMetadata)
+		proxyClientStream.end(proxiedMetadata)
+	})
 
-		proxyClientStream.on('close', () => {
-			console.log('[proxy] | server stream | close event')
-		})
+	proxyServerStream.on('error', (error) => {
+		console.error('[proxy] | server stream | error event from server:', error.message)
+		// Note: here we could:
+		// 1) pass the proxiedMetadata with error (error.metadata = proxiedMetadata) if they reached us
+		// 2) send custom metadata (with custom error message)
+		// 3) send error as is, because server could pass metadata with error
+		proxyClientStream.emit('error', error)
+	})
 
-		proxyClientStream.on('status', (status) => {
-			// Status of the call when it has completed
-			console.log('[proxy] | server stream | status event:', status)
-		})
+	proxyServerStream.on('metadata', (metadata) => {
+		console.log('[proxy] | server stream | headers metadata event', metadata)
+		proxiedMetadata.add('x-pong', metadata.get('x-pong')[0])
+		// NOTE: we could send the metadata in headers, but we will send them in end
+		// just to showcase that we can send them in trailers.
+	})
 
-		// Pass data from client to server
-		pass.on('data', (chunk) => {
-			console.log('[proxy] | client stream | data event | passing chunk to server:', chunk)
-			proxyClientStream.write(chunk)
-		})
+	proxyServerStream.on('close', () => {
+		console.log('[proxy] | server stream | close event')
+	})
 
-		// Client has finished sending data, we can signal end to the server
-		pass.on('end', (lastChunk) => {
-			console.log('[proxy] | client stream | end event -> sending end to server')
-			if (lastChunk) {
-				console.log('[proxy] | client stream | end event | passing last chunk to server:', lastChunk)
-				proxyClientStream.write(lastChunk)
-			}
-			proxyClientStream.end()
-		})
+	proxyServerStream.on('status', (status) => {
+		// Status of the call when it has completed
+		console.log('[proxy] | server stream | status event:', status)
+	})
+
+	// Pass data from client to server
+	pass.on('data', (chunk) => {
+		console.log('[proxy] | client stream | data event | passing chunk to server:', chunk)
+		proxyServerStream.write(chunk)
+	})
+
+	// Client has finished sending data, we can signal end to the server
+	pass.on('end', (lastChunk) => {
+		console.log('[proxy] | client stream | end event -> sending end to server')
+		if (lastChunk) {
+			console.log('[proxy] | client stream | end event | passing last chunk to server:', lastChunk)
+			proxyServerStream.write(lastChunk)
+		}
+		proxyServerStream.end()
 	})
 }
 

@@ -3,9 +3,10 @@ require('dotenv').config()
 const ServiceClient = require('@slechtaj/service-client')
 const debug = require('debug')('callee')
 
-const chatLoadConfig = require('../proto/chat/config')
-const fileShareLoadConfig = require('../proto/file-share/config')
-const poiLoadConfig = require('../proto/poi/config')
+const chatServiceConfig = require('../proto/chat/config')
+const fileShareServiceConfig = require('../proto/file-share/config')
+const poiServiceConfig = require('../proto/poi/config')
+const jsonServiceConfig = require('../proto/json/config')
 const { simpleProxyConfig, simpleServerConfig } = require('../proto/proxy/config')
 
 const config = require('./config')
@@ -15,26 +16,26 @@ const { teardown } = require('./utils')
 const chatService = {
 	route: '/slechtaj-1.0.0/dev~service_route/chat',
 	handlers: require('./chat/handlers'),
-	serviceName: chatLoadConfig.serviceName,
-	filename: chatLoadConfig.filename,
-	loadOptions: chatLoadConfig.loadOptions,
+	serviceName: chatServiceConfig.serviceName,
+	filename: chatServiceConfig.filename,
+	loadOptions: chatServiceConfig.loadOptions,
 }
 
 // service with all types of grpc streams/requests
 const poiService = {
 	route: '/slechtaj-1.0.0/dev~service_route/poi',
 	handlers: require('./poi/handlers'),
-	serviceName: poiLoadConfig.serviceName,
-	filename: poiLoadConfig.filename,
-	loadOptions: poiLoadConfig.loadOptions,
+	serviceName: poiServiceConfig.serviceName,
+	filename: poiServiceConfig.filename,
+	loadOptions: poiServiceConfig.loadOptions,
 }
 
 // service with request-stream file upload demo
 const fileShareService = {
 	route: '/slechtaj-1.0.0/dev~service_route/file_share',
 	handlers: require('./file-share/handlers'),
-	serviceName: fileShareLoadConfig.serviceName,
-	filename: fileShareLoadConfig.filename,
+	serviceName: fileShareServiceConfig.serviceName,
+	filename: fileShareServiceConfig.filename,
 }
 
 // service for parent demo - proxy
@@ -55,6 +56,13 @@ const simpleServerService = {
 	loadOptions: simpleServerConfig.loadOptions,
 }
 
+const jsonService = {
+	route: '/slechtaj-1.0.0/dev~service_route/json',
+	handlers: require('./json/handlers'),
+	serviceName: jsonServiceConfig.serviceName,
+	filename: jsonServiceConfig.filename,
+}
+
 const registerServices = (services, sc) => {
 	for (const service of services) {
 		sc.registerService(service.route, service.filename, service.serviceName, service.handlers, service.loadOptions)
@@ -70,8 +78,8 @@ function callee() {
 		if (err) {
 			console.error(err)
 		}
-		// debug(`Received ${signal}, closing connections and shutting down`)
-		// sc.close()
+		debug(`Received ${signal}, closing connections and shutting down`)
+		sc.close()
 	})
 
 	try {
@@ -93,7 +101,7 @@ function callee() {
 			process.exit()
 		})
 
-		const services = [chatService, poiService, fileShareService]
+		const services = [chatService, poiService, fileShareService, jsonService]
 
 		if (demo === 'simple-proxy') services.push(simpleProxyService)
 		if (demo === 'simple-server') services.push(simpleServerService)

@@ -12,6 +12,7 @@ const HealthService = grpc.makeGenericClientConstructor(healthServiceMethods)
 const ChatClient = require('./chat/client')
 const config = require('./config')
 const FileShareClient = require('./file-share/client')
+const JsonClient = require('./json/client')
 const poiClient = require('./poi/client')
 const { client: proxyClient } = require('./proxy')
 const { teardown } = require('./utils')
@@ -33,6 +34,14 @@ function caller() {
 			debug('Connected to the service network')
 
 			const demo = process.argv[2]
+
+			if (demo === 'json') {
+				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/json')
+				const JC = new JsonClient(stub)
+				await JC.json({ hello: 'world from caller' })
+				stub.close()
+				sc.close()
+			}
 
 			if (demo === 'chat') {
 				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/chat')

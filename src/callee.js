@@ -1,12 +1,12 @@
 require('dotenv').config()
 
-const ServiceClient = require('@slechtaj/service-client')
+const { ServiceClient } = require('@slechtaj/service-client')
 const debug = require('debug')('callee')
 
 const chatServiceConfig = require('../proto/chat/config')
 const fileShareServiceConfig = require('../proto/file-share/config')
-const poiServiceConfig = require('../proto/poi/config')
 const jsonServiceConfig = require('../proto/json/config')
+const poiServiceConfig = require('../proto/poi/config')
 const { simpleProxyConfig, simpleServerConfig } = require('../proto/proxy/config')
 
 const config = require('./config')

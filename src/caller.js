@@ -2,7 +2,7 @@ require('dotenv').config()
 
 const path = require('path')
 
-const ServiceClient = require('@slechtaj/service-client')
+const { ServiceClient } = require('@slechtaj/service-client')
 const { grpc } = require('@slechtaj/service-client')
 const debug = require('debug')('caller')
 const { service: healthServiceMethods } = require('grpc-health-check')

@@ -124,24 +124,24 @@ async function simpleProxy(remote, proxyClientStream) {
 
 	proxyClientStream.on('cancelled', () => {
 		// will automatically cancel nested stream
-		console.log('[proxy] | cancelled event -> auto cancel propagation to nested streams')
+		console.log('[proxy] | client stream | cancelled event -> auto cancel propagation to nested streams')
 		pass.end()
 		proxyClientStream.end()
 	})
 	proxyClientStream.on('error', (error) => {
-		console.error('[proxy] | error event from client:', error.message)
+		console.error('[proxy] | client stream | error event from client:', error.message)
 		// TODO: pass to nested stream? pipe to pass which will pipe to nested stream
 	})
 	proxyClientStream.on('end', () => {
-		console.log('[proxy] | end event')
+		console.log('[proxy] | client stream | end event')
 		pass.end()
 	})
 	proxyClientStream.on('data', (chunk) => {
-		console.log('[proxy] | data event:', chunk)
+		console.log('[proxy] | client stream | data event:', chunk)
 		pass.write(chunk)
 	})
 	proxyClientStream.on('close', () => {
-		console.log('[proxy] | close event')
+		console.log('[proxy] | client stream | close event')
 	})
 
 	const path = proxyClientStream.metadata.get('x-service-path')[0]
@@ -153,7 +153,7 @@ async function simpleProxy(remote, proxyClientStream) {
 	// getStub has retry mechanism, we could be late, so thats why we need to check if client
 	// didn't cancel the stream before we got the stub
 	if (proxyClientStream.cancelled) {
-		console.log('[proxy] | client cancelled stream before calling server')
+		console.log('[proxy] | client stream | client cancelled stream before calling server')
 		return
 	}
 

@@ -97,7 +97,7 @@ function callee() {
 		})
 
 		sc.once('error', (error) => {
-			console.error(error)
+			console.error('Error from service client:', error)
 		})
 
 		sc.once('close', () => {

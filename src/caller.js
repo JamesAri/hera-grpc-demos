@@ -91,7 +91,7 @@ function caller() {
 				sc.close()
 			}
 
-			if (demo === 'file-share-non-await-spam') {
+			if (demo === 'dangerous-client-usage') {
 				// eslint-disable-next-line no-constant-condition
 				if (false) {
 					// Don't do this! It will still work, but we might end up with multiple
@@ -137,17 +137,22 @@ function caller() {
 				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/simple_proxy')
 				const proxyTarget = '/slechtaj-1.0.0/dev~service_route/simple_server'
 				const request = 'AABBCCDDEEFFGGHHIIJJ'
-				const response = await proxyClient(stub, proxyTarget, request, {
-					onCall: (call) => {
-						setTimeout(() => {
-							console.log('[caller] | demo | cancelling call | call.cancel() after 3s')
-							call.cancel()
-						}, 3000)
-					},
-				})
-				console.log(`[caller] | demo | response: ${response}`)
-				stub.close()
-				sc.close()
+				try {
+					const response = await proxyClient(stub, proxyTarget, request, {
+						onCall: (call) => {
+							setTimeout(() => {
+								console.log('[caller] | demo | cancelling call | call.cancel() after 5s')
+								call.cancel()
+							}, 5000)
+						},
+					})
+					console.log(`[caller] | demo | response: ${response}`)
+				} catch (error) {
+					console.error(`[caller] | demo | error: ${error.message}`)
+				} finally {
+					stub.close()
+					sc.close()
+				}
 			}
 
 			if (demo === 'proxy-deadline-propagation') {
@@ -156,16 +161,21 @@ function caller() {
 				const request = 'AABBCCDDEEFFGGHHIIJJ'
 				const deadline = new Date()
 				deadline.setTime(deadline.setSeconds(deadline.getSeconds() + 5))
-				const response = await proxyClient(stub, proxyTarget, request, {}, { deadline })
-				console.log(`[caller] | demo | response: ${response}`)
-				stub.close()
-				sc.close()
+				try {
+					const response = await proxyClient(stub, proxyTarget, request, {}, { deadline })
+					console.log(`[caller] | demo | response: ${response}`)
+				} catch (error) {
+					console.error(`[caller] | demo | error: ${error.message}`)
+				} finally {
+					stub.close()
+					sc.close()
+				}
 			}
 		})
 
 		sc.once('error', (error) => {
 			process.exitCode = 1
-			console.error(error)
+			console.error('Error from service client:', error)
 			sc.close()
 		})
 

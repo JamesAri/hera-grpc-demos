@@ -5,7 +5,6 @@ const debug = require('debug')('callee')
 
 const chatServiceConfig = require('../proto/chat/config')
 const fileShareServiceConfig = require('../proto/file-share/config')
-const jsonServiceConfig = require('../proto/json/config')
 const poiServiceConfig = require('../proto/poi/config')
 const { simpleProxyConfig, simpleServerConfig } = require('../proto/proxy/config')
 
@@ -59,13 +58,18 @@ const simpleServerService = {
 const jsonService = {
 	route: '/slechtaj-1.0.0/dev~service_route/json',
 	handlers: require('./json/handlers'),
-	serviceName: jsonServiceConfig.serviceName,
-	filename: jsonServiceConfig.filename,
+	serviceName: 'hera.internal.v1.JsonService',
 }
 
 const registerServices = (services, sc) => {
 	for (const service of services) {
-		sc.registerService(service.route, service.filename, service.serviceName, service.handlers, service.loadOptions)
+		sc.registerService({
+			routes: service.route,
+			filename: service.filename,
+			serviceName: service.serviceName,
+			handlers: service.handlers,
+			loadOptions: service.loadOptions,
+		})
 	}
 }
 

@@ -159,6 +159,7 @@ async function simpleProxy(remote, proxyClientStream) {
 
 	const metadata = new grpc.Metadata()
 	metadata.add('x-ping', proxyClientStream.metadata.get('x-ping')[0])
+	metadata.setOptions({ waitForReady: false }) // let's not wait for server to be ready - just to showcase
 
 	const proxiedMetadata = new grpc.Metadata()
 	// test that setting deadline here won't affect it since it is

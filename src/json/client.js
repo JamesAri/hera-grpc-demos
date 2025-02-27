@@ -9,9 +9,9 @@ module.exports = class JsonClient {
 	}
 
 	async json(data) {
-		const res = await this.stub.jsonRpc({ data: notepack.encode(data) })
-		const resData = notepack.decode(res.data)
-		console.log(resData)
-		return resData
+		const _response = await this.stub.jsonRpc({ data: notepack.encode(data) })
+		const response = notepack.decode(_response.data)
+		console.log(response)
+		return response
 	}
 }

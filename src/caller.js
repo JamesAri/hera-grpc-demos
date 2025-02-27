@@ -3,7 +3,7 @@ require('dotenv').config()
 const path = require('path')
 
 const { ServiceClient } = require('@slechtaj/service-client')
-const { grpc } = require('@slechtaj/service-client')
+const { grpc, compression } = require('@slechtaj/service-client')
 const debug = require('debug')('caller')
 const { service: healthServiceMethods } = require('grpc-health-check')
 
@@ -11,11 +11,13 @@ const HealthService = grpc.makeGenericClientConstructor(healthServiceMethods)
 
 const ChatClient = require('./chat/client')
 const config = require('./config')
-const FileShareClient = require('./file-share/client')
+const sendFile = require('./file-share/client')
 const JsonClient = require('./json/client')
 const poiClient = require('./poi/client')
 const { client: proxyClient } = require('./proxy')
 const { teardown } = require('./utils')
+
+const RANDOM_FILE = path.join(__dirname, 'caller.js')
 
 function caller() {
 	const sc = new ServiceClient(config)
@@ -35,14 +37,15 @@ function caller() {
 
 			const demo = process.argv[2]
 
-			if (demo === 'json') {
-				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/json')
-				const JC = new JsonClient(stub)
-				await JC.json({ hello: 'world from caller' })
+			// run the popular grpc demo
+			if (demo === 'poi') {
+				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/poi')
+				await poiClient(stub)
 				stub.close()
 				sc.close()
 			}
 
+			// run long-lived bidi-stream rpc
 			if (demo === 'chat') {
 				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/chat')
 				const peer = stub.getChannel().getTarget()
@@ -57,16 +60,33 @@ function caller() {
 							stub.close()
 							sc.close()
 						})
-						// run long-lived bidi-stream rpc
 						chat.start()
 					}
 				})
 			}
 
+			if (demo === 'json') {
+				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/json')
+				const JC = new JsonClient(stub)
+				await JC.json({ hello: 'world from caller' })
+				stub.close()
+				sc.close()
+			}
+
 			if (demo === 'file-share') {
 				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/file_share')
-				const fsc = new FileShareClient(stub)
-				await fsc.sendFile(path.join(__dirname, 'caller.js')) // share come rnd file
+				await sendFile(stub, RANDOM_FILE)
+				stub.close()
+				sc.close()
+			}
+
+			if (demo === 'disable-compression') {
+				const clientOptions = {
+					'grpc.default_compression_level': compression.LEVELS.NONE,
+					'grpc.default_compression_algorithm': compression.ALGORITHMS.NO_COMPRESSION,
+				}
+				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/file_share', clientOptions)
+				await sendFile(stub, RANDOM_FILE)
 				stub.close()
 				sc.close()
 			}
@@ -78,25 +98,16 @@ function caller() {
 					// connections which will be very resource intensive.
 					for (let i = 0; i < 100; i++) {
 						const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/file_share')
-						const fsc = new FileShareClient(stub)
-						await fsc.sendFile(path.join(__dirname, 'caller.js')) // share come rnd file
+						await sendFile(stub, RANDOM_FILE) // share come rnd file
 						stub.close()
 					}
 					sc.close()
 				}
 				// Instead reuse the channel like this:
 				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/file_share')
-				const fsc = new FileShareClient(stub)
 				for (let i = 0; i < 100; i++) {
-					await fsc.sendFile(path.join(__dirname, 'caller.js')) // share come rnd file
+					await sendFile(stub, RANDOM_FILE) // share come rnd file
 				}
-				stub.close()
-				sc.close()
-			}
-
-			if (demo === 'poi') {
-				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/poi')
-				await poiClient(stub) // run the popular grpc demo
 				stub.close()
 				sc.close()
 			}
@@ -104,9 +115,8 @@ function caller() {
 			if (demo === 'lb-round-robin') {
 				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/file_share')
 				// run multiple callee instances and let the load balancer distribute the requests
-				const fsc = new FileShareClient(stub)
 				for (let i = 0; i < 50; i++) {
-					await fsc.sendFile(path.join(__dirname, 'caller.js'))
+					await sendFile(stub, RANDOM_FILE)
 					await new Promise((resolve) => setTimeout(resolve, 500)) // so we can "see" the LB in action
 				}
 				stub.close()
@@ -115,12 +125,9 @@ function caller() {
 
 			if (demo === 'proxy') {
 				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/simple_proxy')
-				const path = '/slechtaj-1.0.0/dev~service_route/simple_server'
-
+				const proxyTarget = '/slechtaj-1.0.0/dev~service_route/simple_server'
 				const request = 'AABBCCDDEEFFGGHHIIJJ'
-
-				const response = await proxyClient(stub, path, request)
-
+				const response = await proxyClient(stub, proxyTarget, request)
 				console.log(`[caller] | demo | response: ${response.join(' ')}`)
 				stub.close()
 				sc.close()
@@ -128,11 +135,9 @@ function caller() {
 
 			if (demo === 'proxy-cancel-propagation') {
 				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/simple_proxy')
-				const path = '/slechtaj-1.0.0/dev~service_route/simple_server'
-
+				const proxyTarget = '/slechtaj-1.0.0/dev~service_route/simple_server'
 				const request = 'AABBCCDDEEFFGGHHIIJJ'
-
-				const response = await proxyClient(stub, path, request, {
+				const response = await proxyClient(stub, proxyTarget, request, {
 					onCall: (call) => {
 						setTimeout(() => {
 							console.log('[caller] | demo | cancelling call | call.cancel() after 3s')
@@ -147,11 +152,11 @@ function caller() {
 
 			if (demo === 'proxy-deadline-propagation') {
 				const stub = await sc.getStub('/slechtaj-1.0.0/dev~service_route/simple_proxy')
-				const path = '/slechtaj-1.0.0/dev~service_route/simple_server'
-
+				const proxyTarget = '/slechtaj-1.0.0/dev~service_route/simple_server'
 				const request = 'AABBCCDDEEFFGGHHIIJJ'
-
-				const response = await proxyClient(stub, path, request, {}, { deadline: new Date().getTime() + 5000 })
+				const deadline = new Date()
+				deadline.setTime(deadline.setSeconds(deadline.getSeconds() + 5))
+				const response = await proxyClient(stub, proxyTarget, request, {}, { deadline })
 				console.log(`[caller] | demo | response: ${response}`)
 				stub.close()
 				sc.close()

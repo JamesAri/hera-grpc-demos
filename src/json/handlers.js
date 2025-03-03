@@ -1,6 +1,6 @@
 const notepack = require('notepack.io')
 
-function jsonRpc(_remote, call, callback) {
+function jsonRpc(call, callback) {
 	const req = notepack.decode(call.request.data)
 
 	console.log({ req })

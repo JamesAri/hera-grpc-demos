@@ -65,7 +65,7 @@ class WorkPool {
 /**
  * Send pong data
  */
-function simpleServer(_remote, stream) {
+function simpleServer(stream) {
 	// "processing" work pool
 	const workPool = new WorkPool(stream)
 
@@ -110,7 +110,7 @@ function simpleServer(_remote, stream) {
 // bidi stream
 // ↓
 
-async function simpleProxy(remote, proxyClientStream) {
+async function simpleProxy(proxyClientStream) {
 	// proxyClientStream - bidirectional stream between client and proxy
 	// proxyServerStream - bidirectional stream between proxy and server
 	// pass - passThrough stream (buffer) to pass data between client and server
@@ -146,9 +146,9 @@ async function simpleProxy(remote, proxyClientStream) {
 
 	const path = proxyClientStream.metadata.get('x-service-path')[0]
 
-	// nested server call - calling getStub from remote context;
+	// nested server call
 	// proxy <-> server
-	const stub = await remote.getStub(path)
+	const stub = await proxyClientStream.getStub(path)
 
 	// getStub has retry mechanism, we could be late, so thats why we need to check if client
 	// didn't cancel the stream before we got the stub

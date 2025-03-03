@@ -92,7 +92,7 @@ function callee() {
 		})
 
 		sc.once('registered', (port) => {
-			debug(`gRPC server listening on http://${config.connection.host}:${port}`)
+			debug(`gRPC server listening on http://${config.host}:${port}`)
 			debug('Services registered to zookeeper and ready to handle requests')
 		})
 

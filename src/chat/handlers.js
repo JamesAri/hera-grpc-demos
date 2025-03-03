@@ -72,7 +72,7 @@ class ChatService {
 		return this._getConnection(clientId, stream).username
 	}
 
-	connectChat(_sc, stream) {
+	connectChat(stream) {
 		const headers = stream.metadata.getMap()
 
 		if (!headers['x-client-id']) {

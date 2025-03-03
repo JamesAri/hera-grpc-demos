@@ -1,7 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 
-function downloadFile(_sc, call, callback) {
+function downloadFile(call, callback) {
 	let fileName = call.metadata.get('x-file-name')
 	if (!fileName.length) {
 		callback(null, {

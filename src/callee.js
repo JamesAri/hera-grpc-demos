@@ -96,7 +96,7 @@ function callee() {
 			debug('Services registered to zookeeper and ready to handle requests')
 		})
 
-		sc.once('error', (error) => {
+		sc.on('error', (error) => {
 			console.error('Error from service client:', error)
 		})
 

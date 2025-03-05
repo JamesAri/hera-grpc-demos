@@ -35,7 +35,10 @@ teardown((err, signal) => {
 async function caller() {
 	const sc = new ServiceClient(config)
 
-	cleanups.push(sc.close)
+	cleanups.push(() => {
+		sc.close()
+		process.exit(1)
+	})
 
 	try {
 		await sc.connect()

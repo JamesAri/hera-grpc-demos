@@ -2,10 +2,8 @@ const path = require('path')
 
 const { ServiceClient } = require('@slechtaj/service-client')
 
-const poiProtoPath = path.join(__dirname, '../proto/poi/poi.proto')
-
 // Handlers from the POI service tutorial
-const poiHandlers = require('../poi/handlers')
+const poiHandlers = require('../../poi/handlers')
 
 const sc = new ServiceClient({
 	host: 'localhost',
@@ -17,7 +15,7 @@ sc.registerService({
 	routes: '/example-1.0.0/dev~service_route/poi',
 	serviceName: 'RouteGuide',
 	handlers: poiHandlers,
-	filename: poiProtoPath,
+	filename: path.join(__dirname, '../../../proto/poi/poi.proto'),
 	loadOptions: {
 		keepCase: true,
 		longs: String,
@@ -27,13 +25,8 @@ sc.registerService({
 	},
 })
 
-sc.on('error', (error) => {
-	console.error('Error from service client:', error)
-})
-
-try {
-	sc.connect()
-} catch (error) {
-	console.error('Callee error:', error)
-	sc.close()
+const run = async () => {
+	await sc.connect()
 }
+
+run().catch(console.error)

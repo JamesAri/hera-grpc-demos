@@ -9,11 +9,24 @@ const poiServiceConfig = require('../proto/poi/config')
 const { simpleProxyConfig, simpleServerConfig } = require('../proto/proxy/config')
 
 const config = require('./config')
+const TestServerInterceptor = require('./server-interceptor')
 const { teardown } = require('./utils')
+
+const cleanups = []
+
+teardown((err, signal) => {
+	if (err) {
+		console.error(err)
+	}
+	debug(`Received ${signal}, closing connections and shutting down`)
+	cleanups.forEach((cleanup) => {
+		cleanup()
+	})
+})
 
 // service with long-lived bidi-stream
 const chatService = {
-	route: '/slechtaj-1.0.0/dev~service_route/chat',
+	routes: '/slechtaj-1.0.0/dev~service_route/chat',
 	handlers: require('./chat/handlers'),
 	serviceName: chatServiceConfig.serviceName,
 	filename: chatServiceConfig.filename,
@@ -22,7 +35,7 @@ const chatService = {
 
 // service with all types of grpc streams/requests
 const poiService = {
-	route: '/slechtaj-1.0.0/dev~service_route/poi',
+	routes: '/slechtaj-1.0.0/dev~service_route/poi',
 	handlers: require('./poi/handlers'),
 	serviceName: poiServiceConfig.serviceName,
 	filename: poiServiceConfig.filename,
@@ -31,7 +44,7 @@ const poiService = {
 
 // service with request-stream file upload demo
 const fileShareService = {
-	route: '/slechtaj-1.0.0/dev~service_route/file_share',
+	routes: '/slechtaj-1.0.0/dev~service_route/file_share',
 	handlers: require('./file-share/handlers'),
 	serviceName: fileShareServiceConfig.serviceName,
 	filename: fileShareServiceConfig.filename,
@@ -39,7 +52,7 @@ const fileShareService = {
 
 // service for parent demo - proxy
 const simpleProxyService = {
-	route: '/slechtaj-1.0.0/dev~service_route/simple_proxy',
+	routes: '/slechtaj-1.0.0/dev~service_route/simple_proxy',
 	handlers: require('./proxy').simpleProxyHandler,
 	serviceName: simpleProxyConfig.serviceName,
 	filename: simpleProxyConfig.filename,
@@ -48,7 +61,7 @@ const simpleProxyService = {
 
 // service for parent demo - server
 const simpleServerService = {
-	route: '/slechtaj-1.0.0/dev~service_route/simple_server',
+	routes: '/slechtaj-1.0.0/dev~service_route/simple_server',
 	handlers: require('./proxy').simpleServerHandler,
 	serviceName: simpleServerConfig.serviceName,
 	filename: simpleServerConfig.filename,
@@ -56,7 +69,7 @@ const simpleServerService = {
 }
 
 const jsonService = {
-	route: '/slechtaj-1.0.0/dev~service_route/json',
+	routes: '/slechtaj-1.0.0/dev~service_route/json',
 	handlers: require('./json/handlers'),
 	serviceName: 'hera.internal.v1.JsonService',
 }
@@ -64,7 +77,7 @@ const jsonService = {
 const registerServices = (services, sc) => {
 	for (const service of services) {
 		sc.registerService({
-			routes: service.route,
+			routes: service.routes,
 			filename: service.filename,
 			serviceName: service.serviceName,
 			handlers: service.handlers,
@@ -73,20 +86,20 @@ const registerServices = (services, sc) => {
 	}
 }
 
-function callee() {
-	const sc = new ServiceClient(config)
+const services = [chatService, poiService, fileShareService, jsonService]
 
-	const demo = process.argv[2]
+const demo = process.argv[2]
 
-	teardown((err, signal) => {
-		if (err) {
-			console.error(err)
-		}
-		debug(`Received ${signal}, closing connections and shutting down`)
-		sc.close()
-	})
+if (demo === 'simple-proxy') services.push(simpleProxyService)
+if (demo === 'simple-server') services.push(simpleServerService)
 
+// eslint-disable-next-line no-unused-vars
+function calleeEvents() {
 	try {
+		const sc = new ServiceClient(config)
+
+		cleanups.push(sc.close)
+
 		sc.once('connected', () => {
 			debug('Connected to the service network and ready to send requests')
 		})
@@ -96,25 +109,30 @@ function callee() {
 			debug('Services registered to zookeeper and ready to handle requests')
 		})
 
-		sc.on('error', (error) => {
-			console.error('Error from service client:', error)
-		})
-
 		sc.once('close', () => {
-			console.log('Server closing')
-			process.exit()
+			debug('Server closing')
 		})
-
-		const services = [chatService, poiService, fileShareService, jsonService]
-
-		if (demo === 'simple-proxy') services.push(simpleProxyService)
-		if (demo === 'simple-server') services.push(simpleServerService)
 
 		registerServices(services, sc)
+
 		sc.connect()
 	} catch (error) {
-		console.error('Callee error:')
-		console.error(error)
+		console.error('Callee error:', error)
+	}
+}
+
+async function callee() {
+	try {
+		const serverOptions = { interceptors: [new TestServerInterceptor().interceptor] }
+		const sc = new ServiceClient({ ...config, serverOptions })
+
+		cleanups.push(sc.close)
+
+		registerServices(services, sc)
+
+		await sc.connect()
+	} catch (error) {
+		console.error('Callee error:', error)
 	}
 }
 

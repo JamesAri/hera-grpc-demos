@@ -1,0 +1,27 @@
+const path = require('path')
+
+const { ServiceClient } = require('@slechtaj/service-client')
+
+const sc = new ServiceClient({
+	host: 'localhost',
+	port: 50051,
+	zk: 'zk://localhost:2181/hera-test',
+})
+
+sc.registerService({
+	routes: '/hardworking-service',
+	serviceName: 'my.package.v1.HelloWorld',
+	filename: path.join(__dirname, 'helloworld.proto'),
+	handlers: {
+		addOne: async (call, callback) => {
+			const { request } = call
+			callback(null, { value: request.value + 1 })
+		},
+	},
+})
+
+const run = async () => {
+	await sc.connect()
+}
+
+run().catch(console.error)

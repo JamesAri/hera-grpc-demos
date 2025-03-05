@@ -273,8 +273,9 @@ const clientFn = (
 		const chunkedData = chunkStringStream(request, 2)
 
 		chunkedData.on('data', (stringChunk) => {
-			console.log('[client] | sending data:', stringChunk)
-			call.write({ data: stringChunk })
+			const req = { data: stringChunk }
+			console.log('[client] | sending data:', req)
+			call.write(req)
 		})
 
 		chunkedData.on('end', (lastStringChunk) => {

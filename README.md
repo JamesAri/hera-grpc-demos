@@ -1,1 +1,1 @@
-various demos for usage of lib with all the rpc types
+various demos for [hera-grpc](https://github.com/JamesAri/hera-grpc)

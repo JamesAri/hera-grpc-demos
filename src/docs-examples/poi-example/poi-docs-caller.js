@@ -1,4 +1,4 @@
-const { ServiceClient } = require('hera-client')
+const { ServiceClient } = require('hera-grpc')
 
 const poiClient = require('../../poi/client')
 

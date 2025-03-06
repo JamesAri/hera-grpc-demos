@@ -9,15 +9,6 @@ function jsonRpc(call, callback) {
 		callback(null, { data: notepack.encode(data) })
 	}
 
-	const error = (message) => {
-		callback(message)
-	}
-
-	const res = {
-		json: json,
-		error: error,
-	}
-
 	json({ status: 200, hello: 'world' })
 }
 

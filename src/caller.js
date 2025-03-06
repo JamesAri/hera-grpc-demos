@@ -4,8 +4,8 @@ const path = require('path')
 
 const debug = require('debug')('caller')
 const { service: healthServiceMethods } = require('grpc-health-check')
-const { ServiceClient } = require('hera-client')
-const { grpc, compression } = require('hera-client')
+const { ServiceClient } = require('hera-grpc')
+const { grpc, compression } = require('hera-grpc')
 
 const HealthService = grpc.makeGenericClientConstructor(healthServiceMethods)
 

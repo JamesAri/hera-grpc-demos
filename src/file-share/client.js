@@ -1,7 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 
-const { grpc } = require('hera-client')
+const { grpc } = require('hera-grpc')
 
 module.exports = function sendFile(stub, fileName, options = {}) {
 	return new Promise((resolve, reject) => {

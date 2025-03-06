@@ -1,7 +1,7 @@
 require('dotenv').config()
 
 const debug = require('debug')('callee')
-const { ServiceClient } = require('hera-client')
+const { ServiceClient } = require('hera-grpc')
 
 const chatServiceConfig = require('../proto/chat/config')
 const fileShareServiceConfig = require('../proto/file-share/config')

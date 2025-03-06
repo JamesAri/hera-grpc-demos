@@ -1,6 +1,6 @@
 const { PassThrough } = require('node:stream')
 
-const { grpc } = require('hera-client')
+const { grpc } = require('hera-grpc')
 
 const { chunkStringStream } = require('./utils')
 

@@ -1,6 +1,6 @@
 const path = require('path')
 
-const { ServiceClient } = require('hera-client')
+const { ServiceClient } = require('hera-grpc')
 
 const sc = new ServiceClient({
 	zk: 'zk://localhost:2181/hera-grpc',

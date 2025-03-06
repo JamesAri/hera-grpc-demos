@@ -47,14 +47,6 @@ async function caller() {
 
 		const demo = process.argv[2]
 
-		// run the popular grpc demo
-		if (demo === 'poi') {
-			const stub = await sc.getStub('/slechtaj-1/dev~service_route/poi')
-			await poiClient(stub)
-			stub.close()
-			sc.close()
-		}
-
 		// run long-lived bidi-stream rpc
 		if (demo === 'chat') {
 			const stub = await sc.getStub('/slechtaj-1/dev~service_route/chat')
@@ -74,6 +66,14 @@ async function caller() {
 					chat.start()
 				}
 			})
+			return
+		}
+
+		// run the popular grpc demo
+		if (demo === 'poi') {
+			const stub = await sc.getStub('/slechtaj-1/dev~service_route/poi')
+			await poiClient(stub)
+			stub.close()
 		}
 
 		if (demo === 'json') {
@@ -81,14 +81,12 @@ async function caller() {
 			const JC = new JsonClient(stub)
 			await JC.json({ hello: 'world from caller' })
 			stub.close()
-			sc.close()
 		}
 
 		if (demo === 'file-share') {
 			const stub = await sc.getStub('/slechtaj-1/dev~service_route/file_share')
 			await sendFile(stub, RANDOM_FILE)
 			stub.close()
-			sc.close()
 		}
 
 		if (demo === 'disable-compression') {
@@ -99,7 +97,6 @@ async function caller() {
 			const stub = await sc.getStub('/slechtaj-1/dev~service_route/file_share', clientOptions)
 			await sendFile(stub, RANDOM_FILE)
 			stub.close()
-			sc.close()
 		}
 
 		if (demo === 'dangerous-client-usage') {
@@ -109,7 +106,7 @@ async function caller() {
 				// connections which will be very resource intensive.
 				for (let i = 0; i < 100; i++) {
 					const stub = await sc.getStub('/slechtaj-1/dev~service_route/file_share')
-					await sendFile(stub, RANDOM_FILE) // share come rnd file
+					await sendFile(stub, RANDOM_FILE) // share some rnd file
 					stub.close()
 				}
 				sc.close()
@@ -117,10 +114,9 @@ async function caller() {
 			// Instead reuse the channel like this:
 			const stub = await sc.getStub('/slechtaj-1/dev~service_route/file_share')
 			for (let i = 0; i < 100; i++) {
-				await sendFile(stub, RANDOM_FILE) // share come rnd file
+				await sendFile(stub, RANDOM_FILE) // share some rnd file
 			}
 			stub.close()
-			sc.close()
 		}
 
 		if (demo === 'lb-round-robin') {
@@ -131,7 +127,6 @@ async function caller() {
 				await new Promise((resolve) => setTimeout(resolve, 500)) // so we can "see" the LB in action
 			}
 			stub.close()
-			sc.close()
 		}
 
 		if (demo === 'proxy') {
@@ -141,7 +136,6 @@ async function caller() {
 			const response = await proxyClient(stub, proxyTarget, request)
 			console.log(`[caller] | demo | response: ${response.join(' ')}`)
 			stub.close()
-			sc.close()
 		}
 
 		if (demo === 'proxy-cancel-propagation') {
@@ -162,7 +156,6 @@ async function caller() {
 				console.error(`[caller] | demo | error: ${error.message}`)
 			} finally {
 				stub.close()
-				sc.close()
 			}
 		}
 
@@ -179,7 +172,6 @@ async function caller() {
 				console.error(`[caller] | demo | error: ${error.message}`)
 			} finally {
 				stub.close()
-				sc.close()
 			}
 		}
 
@@ -188,8 +180,9 @@ async function caller() {
 			const stub = await sc.getStub('/slechtaj-1/dev~service_route/file_share', clientOptions)
 			await sendFile(stub, RANDOM_FILE /** clientOptions */) // NOTE: cannot use interceptors on call, only at stub creation
 			stub.close()
-			sc.close()
 		}
+
+		sc.close()
 	} catch (error) {
 		console.error('Caller error:', error)
 		sc.close()

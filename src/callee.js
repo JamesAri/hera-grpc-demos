@@ -93,34 +93,6 @@ const demo = process.argv[2]
 if (demo === 'simple-proxy') services.push(simpleProxyService)
 if (demo === 'simple-server') services.push(simpleServerService)
 
-// eslint-disable-next-line no-unused-vars
-function calleeEvents() {
-	try {
-		const sc = new ServiceClient(config)
-
-		cleanups.push(sc.close)
-
-		sc.once('connected', () => {
-			debug('Connected to the service network and ready to send requests')
-		})
-
-		sc.once('registered', (port) => {
-			debug(`gRPC server listening on http://${config.host}:${port}`)
-			debug('Services registered to zookeeper and ready to handle requests')
-		})
-
-		sc.once('close', () => {
-			debug('Server closing')
-		})
-
-		registerServices(services, sc)
-
-		sc.connect()
-	} catch (error) {
-		console.error('Callee error:', error)
-	}
-}
-
 async function callee() {
 	try {
 		const serverOptions = { interceptors: [new TestServerInterceptor().interceptor] }

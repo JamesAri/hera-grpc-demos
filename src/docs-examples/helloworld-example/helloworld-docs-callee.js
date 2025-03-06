@@ -3,13 +3,11 @@ const path = require('path')
 const { ServiceClient } = require('@slechtaj/service-client')
 
 const sc = new ServiceClient({
-	host: 'localhost',
-	port: 50051,
-	zk: 'zk://localhost:2181/hera-test',
+	zk: 'zk://localhost:2181/hera-grpc',
 })
 
 sc.registerService({
-	routes: '/example-1.0.0/dev~service_route/helloworld',
+	routes: '/example-1/dev~service_route/helloworld',
 	serviceName: 'my.package.v1.HelloWorld',
 	filename: path.join(__dirname, 'helloworld.proto'),
 	handlers: {

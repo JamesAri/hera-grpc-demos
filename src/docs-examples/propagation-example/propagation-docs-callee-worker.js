@@ -3,9 +3,7 @@ const path = require('path')
 const { ServiceClient } = require('@slechtaj/service-client')
 
 const sc = new ServiceClient({
-	host: 'localhost',
-	port: 50051,
-	zk: 'zk://localhost:2181/hera-test',
+	zk: 'zk://localhost:2181/hera-grpc',
 })
 
 sc.registerService({

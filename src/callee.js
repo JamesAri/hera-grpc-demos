@@ -26,7 +26,7 @@ teardown((err, signal) => {
 
 // service with long-lived bidi-stream
 const chatService = {
-	routes: '/slechtaj-1.0.0/dev~service_route/chat',
+	routes: '/slechtaj-1/dev~service_route/chat',
 	handlers: require('./chat/handlers'),
 	serviceName: chatServiceConfig.serviceName,
 	filename: chatServiceConfig.filename,
@@ -35,7 +35,7 @@ const chatService = {
 
 // service with all types of grpc streams/requests
 const poiService = {
-	routes: '/slechtaj-1.0.0/dev~service_route/poi',
+	routes: '/slechtaj-1/dev~service_route/poi',
 	handlers: require('./poi/handlers'),
 	serviceName: poiServiceConfig.serviceName,
 	filename: poiServiceConfig.filename,
@@ -44,7 +44,7 @@ const poiService = {
 
 // service with request-stream file upload demo
 const fileShareService = {
-	routes: '/slechtaj-1.0.0/dev~service_route/file_share',
+	routes: '/slechtaj-1/dev~service_route/file_share',
 	handlers: require('./file-share/handlers'),
 	serviceName: fileShareServiceConfig.serviceName,
 	filename: fileShareServiceConfig.filename,
@@ -52,7 +52,7 @@ const fileShareService = {
 
 // service for parent demo - proxy
 const simpleProxyService = {
-	routes: '/slechtaj-1.0.0/dev~service_route/simple_proxy',
+	routes: '/slechtaj-1/dev~service_route/simple_proxy',
 	handlers: require('./proxy').simpleProxyHandler,
 	serviceName: simpleProxyConfig.serviceName,
 	filename: simpleProxyConfig.filename,
@@ -61,7 +61,7 @@ const simpleProxyService = {
 
 // service for parent demo - server
 const simpleServerService = {
-	routes: '/slechtaj-1.0.0/dev~service_route/simple_server',
+	routes: '/slechtaj-1/dev~service_route/simple_server',
 	handlers: require('./proxy').simpleServerHandler,
 	serviceName: simpleServerConfig.serviceName,
 	filename: simpleServerConfig.filename,
@@ -69,7 +69,7 @@ const simpleServerService = {
 }
 
 const jsonService = {
-	routes: '/slechtaj-1.0.0/dev~service_route/json',
+	routes: '/slechtaj-1/dev~service_route/json',
 	handlers: require('./json/handlers'),
 	serviceName: 'hera.internal.v1.JsonService',
 }

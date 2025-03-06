@@ -1,4 +1,4 @@
-const { logLevels } = require('@slechtaj/service-client')
+const { logLevels } = require('hera-client')
 
 module.exports = {
 	zk: 'zk://localhost:2181/hera-grpc',

@@ -1,7 +1,7 @@
 const crypto = require('crypto')
 const readline = require('readline')
 
-const { grpc } = require('@slechtaj/service-client')
+const { grpc } = require('hera-client')
 
 const MESSAGE_TYPES = require('./message-types')
 

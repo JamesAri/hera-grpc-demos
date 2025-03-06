@@ -2,10 +2,10 @@ require('dotenv').config()
 
 const path = require('path')
 
-const { ServiceClient } = require('@slechtaj/service-client')
-const { grpc, compression } = require('@slechtaj/service-client')
 const debug = require('debug')('caller')
 const { service: healthServiceMethods } = require('grpc-health-check')
+const { ServiceClient } = require('hera-client')
+const { grpc, compression } = require('hera-client')
 
 const HealthService = grpc.makeGenericClientConstructor(healthServiceMethods)
 

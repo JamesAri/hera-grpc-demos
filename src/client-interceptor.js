@@ -1,5 +1,5 @@
-const { grpc } = require('@slechtaj/service-client')
 const debug = require('debug')('user-client-interceptor')
+const { grpc } = require('hera-client')
 
 module.exports = class TestClientInterceptor {
 	constructor() {

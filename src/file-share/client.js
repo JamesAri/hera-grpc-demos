@@ -1,7 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 
-const { grpc } = require('@slechtaj/service-client')
+const { grpc } = require('hera-client')
 
 module.exports = function sendFile(stub, fileName, options = {}) {
 	return new Promise((resolve, reject) => {
@@ -36,5 +36,3 @@ module.exports = function sendFile(stub, fileName, options = {}) {
 		})
 	})
 }
-
-

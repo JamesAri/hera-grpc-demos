@@ -1,6 +1,6 @@
 const path = require('path')
 
-const { ServiceClient } = require('@slechtaj/service-client')
+const { ServiceClient } = require('hera-client')
 
 // Handlers from the POI service tutorial
 const poiHandlers = require('../../poi/handlers')

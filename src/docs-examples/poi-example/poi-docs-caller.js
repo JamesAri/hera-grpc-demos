@@ -1,4 +1,4 @@
-const { ServiceClient } = require('@slechtaj/service-client')
+const { ServiceClient } = require('hera-client')
 
 const poiClient = require('../../poi/client')
 

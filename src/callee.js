@@ -1,7 +1,7 @@
 require('dotenv').config()
 
-const { ServiceClient } = require('@slechtaj/service-client')
 const debug = require('debug')('callee')
+const { ServiceClient } = require('hera-client')
 
 const chatServiceConfig = require('../proto/chat/config')
 const fileShareServiceConfig = require('../proto/file-share/config')

@@ -4,7 +4,7 @@ const { grpc } = require('hera-grpc')
 
 const { chunkStringStream } = require('./utils')
 
-// client -> simple proxy -> simple stream -> simple proxy -> client
+// client (A) -> simple proxy (B) -> simple server (C) -> simple proxy (B) -> client (A)
 
 // Class to simulate some work
 class WorkPool {

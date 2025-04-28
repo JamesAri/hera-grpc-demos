@@ -30,11 +30,7 @@ teardown((err, signal) => {
 	process.exit(1)
 })
 
-async function caller() {
-	await sc.connect()
-
-	debug('Connected to the service network')
-
+async function runDemo() {
 	const demo = process.argv[2]
 
 	// run long-lived bidi-stream rpc
@@ -175,16 +171,23 @@ async function caller() {
 		stub.close()
 	}
 
+	// NOTE: some demos might handle the closing alone and return early
 	sc.close()
+}
+
+async function caller() {
+	try {
+		await sc.connect()
+		debug('Connected to the service network')
+		await runDemo()
+	} catch (error) {
+		console.error('Caller error:', error)
+		sc.close()
+	}
 }
 
 module.exports = caller
 
 if (require.main === module) {
-	try {
-		caller()
-	} catch (error) {
-		console.error('Caller error:', error)
-		sc.close()
-	}
+	caller()
 }

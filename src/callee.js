@@ -75,8 +75,10 @@ if (demo === 'simple-server') {
 async function callee() {
 	try {
 		await sc.connect()
+		debug('Connected to the service network')
 	} catch (error) {
 		console.error('Callee error:', error)
+		await sc.close()
 	}
 }
 

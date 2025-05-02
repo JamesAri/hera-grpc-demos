@@ -6,7 +6,7 @@ const loadOptions = {
 	enums: String,
 	defaults: true,
 	oneofs: true,
-	includeDirs: [path.join(__dirname, '/../common')],
+	includeDirs: [path.join(__dirname, '/../../common')],
 }
 
 module.exports = {

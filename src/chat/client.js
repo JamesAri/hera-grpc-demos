@@ -12,7 +12,11 @@ module.exports = class Chat {
 		this._prepareChatCli = this._prepareChatCli.bind(this)
 		this._runChatRoom = this._runChatRoom.bind(this)
 
-		this.username = process.argv[2] + crypto.randomBytes(4).toString('hex')
+		if (process.argv.length >= 3) {
+			this.username = process.argv[3]
+		} else {
+			this.username = process.argv[2] + crypto.randomBytes(4).toString('hex')
+		}
 
 		this.rl = readline.createInterface({
 			input: process.stdin,

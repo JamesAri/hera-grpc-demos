@@ -194,6 +194,7 @@ async function simpleProxy(proxyClientStream) {
 
 	proxyServerStream.on('close', () => {
 		console.log('[proxy] | server stream | close event')
+		stub.close()
 	})
 
 	proxyServerStream.on('status', (status) => {
